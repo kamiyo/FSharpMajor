@@ -11,7 +11,7 @@ open System.Xml
 open Microsoft.FSharp.Reflection
 open MBrace.FsPickler.CSharpProxy
 
-type subsonicXsd = XmlProvider<Schema="./core/API/subsonic-rest-api-1.16.1.xsd">
+let [<Literal>] currentVersion = LiteralProviders.Exec<"pwsh", "-f ./FSharpMajor.fsproj">.Output
 
 let subsonicNamespace = new XmlSerializerNamespaces()
 subsonicNamespace.Add("", "http://subsonic.org/restapi")
@@ -57,7 +57,7 @@ type SubsonicResponseAttributes with
         Status = Some "ok";
         Version = Some "1.16.1";
         Type = Some "fsharpmajor";
-        ServerVersion = Some "0.1.1";
+        ServerVersion = Some currentVersion;
     }
 
 type XmlElement =
