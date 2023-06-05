@@ -1,0 +1,1 @@
+docker buildx build -t kamiyo/fsharpmajor:development --push .
