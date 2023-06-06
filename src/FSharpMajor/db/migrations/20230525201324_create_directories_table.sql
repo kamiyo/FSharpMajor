@@ -1,6 +1,6 @@
 -- migrate:up
 CREATE TABLE directories (
-    id      uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    id      serial PRIMARY KEY,
     path    varchar(255) NOT NULL
 );
 

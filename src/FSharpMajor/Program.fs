@@ -30,87 +30,86 @@ module Program =
     open API.Types
     open System.Threading.Tasks
     open API.System
+    open System.Globalization
+
     let exitCode = 0
 
 
-    let configureApp (app : IApplicationBuilder) =
-        app.UseGiraffe (SerilogAdapter.Enable rootRouter)
+    let configureApp (app: IApplicationBuilder) =
+        app.UseGiraffe(SerilogAdapter.Enable rootRouter)
 
-    type XmlWriterEE(stream: Stream) =
-        inherit XmlTextWriter(stream, null)
-        override __.WriteEndElement() = base.WriteFullEndElement()
-        override __.WriteEndElementAsync() = base.WriteFullEndElementAsync()
-        override __.WriteStartDocument() = ()
-        override __.WriteStartDocumentAsync() = Task.FromResult()
-
-    let writerSettings = XmlWriterSettings(
-        Encoding = UTF8Encoding(false),
-        Indent = true,
-        OmitXmlDeclaration = true
-    )
+    let writerSettings =
+        XmlWriterSettings(Encoding = UTF8Encoding(false), Indent = true, OmitXmlDeclaration = true)
 
     let (|SomeObj|_|) =
         let ty = typedefof<option<_>>
-        fun (a:obj) ->
+
+        fun (a: obj) ->
             let aty = a.GetType()
             let v = aty.GetProperty("Value")
-            if aty.IsGenericType && aty.GetGenericTypeDefinition() = ty then
-                if a = null then None
-                else Some(v.GetValue(a, [| |]))
-            else None
 
-    let toStringFixBool (v : obj) =
+            if aty.IsGenericType && aty.GetGenericTypeDefinition() = ty then
+                if a = null then None else Some(v.GetValue(a, [||]))
+            else
+                None
+
+    let toStringFixBool (v: obj) =
         match v with
         | :? bool -> v.ToString() |> Json.JsonNamingPolicy.CamelCase.ConvertName
         | _ -> v.ToString()
 
     type CustomXmlSerializer(settings) =
-        member __.Write (writer: XmlWriter, node: XmlElement) =
+        member __.Write(writer: XmlWriter, node: IXmlElement) =
             writer.WriteStartElement(node.Name, "http://subsonic.org/restapi")
-            node.Attributes
-            |> asAttributeMap
-            |> Map.iter (fun k v ->
-                            let camelCaseKey = Json.JsonNamingPolicy.CamelCase.ConvertName(k)
-                            match v with
-                                    | null -> ()
-                                    | SomeObj(value) | value ->
-                                        writer.WriteAttributeString(
-                                            camelCaseKey,
-                                            value |> toStringFixBool))
-            match node.Children with
-            | Some children -> children |> Array.iter (fun child -> __.Write(writer, child))
+
+            match node.Attributes with
             | None -> ()
+            | Some attr ->
+                attr.toMap ()
+                |> Map.iter (fun k v ->
+                    let camelCaseKey = Json.JsonNamingPolicy.CamelCase.ConvertName(k)
+
+                    match v with
+                    | null -> ()
+                    | SomeObj(value)
+                    | value -> writer.WriteAttributeString(camelCaseKey, value |> toStringFixBool))
+
+            match node.Children with
+            | Text text -> writer.WriteValue(text)
+            | XmlElements children -> children |> Array.iter (fun child -> __.Write(writer, child))
+            | NoElement -> ()
+
             writer.WriteFullEndElement()
 
         interface Xml.ISerializer with
             // Use different XML library ...
-            member __.Serialize (o : obj) =
+            member __.Serialize(o: obj) =
                 try
-                    let xmlNode = o :?> XmlElement
+                    let xmlNode = o :?> IXmlElement
                     use stream = new MemoryStream()
                     use writer = XmlWriter.Create(stream, settings)
                     __.Write(writer, xmlNode)
                     writer.Flush()
                     writer.Close()
                     stream.ToArray()
-                with
-                | :? InvalidCastException ->
+                with :? InvalidCastException ->
                     use stream = new MemoryStream()
                     use writer = XmlWriter.Create(stream, settings)
                     let serializer = XmlSerializer(o.GetType())
                     serializer.Serialize(writer, o, subsonicNamespace)
                     stream.ToArray()
 
-            member __.Deserialize<'T> (xml : string) =
+            member __.Deserialize<'T>(xml: string) =
                 let serializer = XmlSerializer(typeof<'T>)
                 use reader = new StringReader(xml)
                 serializer.Deserialize reader :?> 'T
 
 
-    let configureServices (services : IServiceCollection) =
+    let configureServices (services: IServiceCollection) =
         services.AddGiraffe() |> ignore
 
-        services.AddSingleton<Xml.ISerializer>(CustomXmlSerializer(writerSettings)) |> ignore
+        services.AddSingleton<Xml.ISerializer>(CustomXmlSerializer(writerSettings))
+        |> ignore
 
     let log =
         LoggerConfiguration()
@@ -126,14 +125,14 @@ module Program =
 
         printfn "hello!"
 
-        Host.CreateDefaultBuilder()
-            .ConfigureWebHostDefaults(
-                fun webHostBuilder ->
-                    webHostBuilder
-                        .UseUrls("http://*:8080")
-                        .Configure(configureApp)
-                        .ConfigureServices(configureServices)
-                        |> ignore)
+        Host
+            .CreateDefaultBuilder()
+            .ConfigureWebHostDefaults(fun webHostBuilder ->
+                webHostBuilder
+                    .UseUrls("http://*:8080")
+                    .Configure(configureApp)
+                    .ConfigureServices(configureServices)
+                |> ignore)
             .Build()
             .Run()
 

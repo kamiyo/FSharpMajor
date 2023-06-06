@@ -5,6 +5,7 @@
     <Version>1.0.0</Version>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Utils/FsLibLog.fs" />
     <Compile Include="core/API/Types.fs" />
     <Compile Include="core/API/System.fs" />
     <Compile Include="core/API/User.fs" />
@@ -12,7 +13,6 @@
     <Compile Include="db/DatabaseTypes.fs">
       <Visible>False</Visible>
     </Compile>
-    <Compile Include="Utils/FsLibLog.fs" />
     <Compile Include="db/Database.fs" />
     <Compile Include="core/Scanner.fs" />
     <Compile Include="Program.fs" />
@@ -28,6 +28,7 @@
     <PackageReference Include="Serilog" Version="2.12.0" />
     <PackageReference Include="Serilog.Sinks.ColoredConsole" Version="3.0.1" />
     <PackageReference Include="SqlHydra.Query" Version="2.0.1" />
+    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.7.0" />
     <PackageReference Include="TagLibSharp" Version="2.3.0" />
   </ItemGroup>
 </Project>
