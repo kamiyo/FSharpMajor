@@ -10,6 +10,8 @@ open Serilog.Context
 open FsLibLog
 open FsLibLog.Types
 
+open dotenv.net
+
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.DependencyInjection
@@ -22,15 +24,17 @@ open Database
 
 open Router
 
-
 module Program =
     open System.Xml
     open System.Text
     open System.Xml.Serialization
+    open Utils.Environment
     open API.Types
     open System.Threading.Tasks
     open API.System
     open System.Globalization
+    open API.User
+    open Encryption
 
     let exitCode = 0
 
@@ -123,7 +127,9 @@ module Program =
     [<EntryPoint>]
     let main args =
 
-        printfn "hello!"
+        "test" |> encryptPassword |> decryptPassword |> ignore
+
+        printfn $"{makeAdmin ()}"
 
         Host
             .CreateDefaultBuilder()

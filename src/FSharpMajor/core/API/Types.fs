@@ -1,32 +1,19 @@
 module API.Types
 
-open System.Xml
 open System.Reflection
 open System.Xml.Serialization
-open System
-open Giraffe.ViewEngine.HtmlElements
-open System.Runtime.Serialization
 
 open FSharp.Data
-open System.Xml
-open Microsoft.FSharp.Reflection
-open MBrace.FsPickler.CSharpProxy
-open System.Xml
-open Serilog.Context
 open FsLibLog
-open Giraffe.ViewEngine.HtmlElements
-open Giraffe.ComputationExpressions
 
 
 [<Literal>]
 let currentVersion =
-    LiteralProviders.Exec<"pwsh", "-f ./scripts/getVersion.ps1">.Output
+    LiteralProviders.Exec<"dotnet", "fsi ./scripts/getVersion.fsx">.Output
 
 
 let subsonicNamespace = new XmlSerializerNamespaces()
 subsonicNamespace.Add("", "http://subsonic.org/restapi")
-
-
 
 type BaseAttributes() =
     member __.toMap() =
@@ -108,9 +95,7 @@ type SubsonicResponseAttributes(?xmlns, ?status, ?version, ?attrType, ?serverVer
     member __.Type: string option = (Some "fsharpmajor")
 
     member __.ServerVersion: string option =
-        match serverVersion with
-        | Some v -> Some v
-        | None -> Some currentVersion
+        Option.orElse (Some currentVersion) serverVersion
 
 type IXmlElement =
     abstract member Name: string
@@ -125,9 +110,7 @@ and XmlChild =
 type castArrayToXmlElements<'a> = array<'a> -> XmlChild
 
 let castArrayToXmlElements: castArrayToXmlElements<'a> =
-    fun elements ->
-        let casted = elements |> Seq.cast<IXmlElement> |> Array.ofSeq
-        XmlElements(casted)
+    fun elements -> elements |> Seq.cast<IXmlElement> |> Array.ofSeq |> XmlElements
 
 let optionToXmlChild opt =
     match opt with

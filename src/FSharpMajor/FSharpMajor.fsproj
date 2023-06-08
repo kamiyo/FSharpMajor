@@ -6,24 +6,30 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Utils/FsLibLog.fs" />
-    <Compile Include="core/API/Types.fs" />
-    <Compile Include="core/API/System.fs" />
-    <Compile Include="core/API/User.fs" />
-    <Compile Include="core/Router.fs" />
-    <Compile Include="db/DatabaseTypes.fs">
-      <Visible>False</Visible>
-    </Compile>
-    <Compile Include="db/Database.fs" />
-    <Compile Include="core/Scanner.fs" />
+    <Compile Include="Utils/Environment.fs" />
+    <Compile Include="DB/Encryption.fs" />
+    <Compile Include="DB/DatabaseTypes.fs" />
+    <Compile Include="DB/DatabaseTypesDefaults.fs" />
+    <Compile Include="DB/Database.fs" />
+    <Compile Include="Core/API/Authorization.fs" />
+    <Compile Include="Core/API/Types.fs" />
+    <Compile Include="Core/API/System.fs" />
+    <Compile Include="Core/API/User.fs" />
+    <Compile Include="Core/Router.fs" />
+    <Compile Include="Core/Scanner.fs" />
     <Compile Include="Program.fs" />
+    <None Include="scripts\getVersion.fsx" />
+    <Content Include="scripts\getVersion.ps1" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="dotenv.net" Version="3.1.2" />
     <PackageReference Include="FsConfig" Version="3.1.0" />
     <PackageReference Include="FSharp.Data" Version="6.2.0" />
     <PackageReference Include="FSharp.Data.LiteralProviders" Version="1.0.3" />
     <PackageReference Include="FsPickler" Version="5.3.2" />
     <PackageReference Include="Giraffe" Version="6.0.0" />
     <PackageReference Include="Giraffe.SerilogExtensions" Version="2.2.0" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.18.1" />
     <PackageReference Include="Npgsql" Version="7.0.4" />
     <PackageReference Include="Serilog" Version="2.12.0" />
     <PackageReference Include="Serilog.Sinks.ColoredConsole" Version="3.0.1" />

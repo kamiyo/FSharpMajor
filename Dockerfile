@@ -1,5 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:7.0-alpine as build
 
+RUN apk update && apk upgrade
+
 WORKDIR /src
 
 COPY . .

@@ -10,17 +10,17 @@ let setXmlType: HttpHandler = setHttpHeader "Content-Type" "application/xml"
 let licenseHandler: HttpHandler =
     setXmlType
     >=> fun (next: HttpFunc) (ctx: HttpContext) ->
-        let response =
-            SubsonicResponse(children = XmlElements [| License(LicenseAttributes()) |])
-
         let serializer = ctx.GetXmlSerializer()
-        let out = serializer.Serialize response
+
+        let out =
+            SubsonicResponse(children = XmlElements [| License(LicenseAttributes()) |])
+            |> serializer.Serialize
+
         setBody out next ctx
 
 let pingHandler: HttpHandler =
     setXmlType
     >=> fun next ctx ->
-        let response = SubsonicResponse()
         let serializer = ctx.GetXmlSerializer()
-        let out = serializer.Serialize response
+        let out = SubsonicResponse() |> serializer.Serialize
         setBody out next ctx

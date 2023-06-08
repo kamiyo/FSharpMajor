@@ -44,7 +44,7 @@ module private DataReaderExtensions =
 
 module ``public`` =
     [<CLIMutable>]
-    type directories = { id: System.Guid; path: string }
+    type directories = { id: int; path: string }
 
     let directories = SqlHydra.Query.Table.table<directories>
 
@@ -57,20 +57,20 @@ module ``public`` =
     type users =
         { id: System.Guid
           username: string
-          password: Option<byte []>
-          scrobbling: bool
-          admin_role: bool
-          settings_role: bool
-          download_role: bool
-          upload_role: bool
-          playlist_role: bool
-          cover_art_role: bool
-          podcast_role: bool
-          comment_role: bool
-          stream_role: bool
-          jukebox_role: bool
-          share_role: bool
-          video_conversion_role: bool
+          password: string
+          scrobbling: Option<bool>
+          admin_role: Option<bool>
+          settings_role: Option<bool>
+          download_role: Option<bool>
+          upload_role: Option<bool>
+          playlist_role: Option<bool>
+          cover_art_role: Option<bool>
+          podcast_role: Option<bool>
+          comment_role: Option<bool>
+          stream_role: Option<bool>
+          jukebox_role: Option<bool>
+          share_role: Option<bool>
+          video_conversion_role: Option<bool>
           max_bit_rate: Option<int>
           avatar_last_changed: Option<System.DateTime> }
 
@@ -78,7 +78,7 @@ module ``public`` =
 
     module Readers =
         type directoriesReader(reader: Npgsql.NpgsqlDataReader, getOrdinal) =
-            member __.id = RequiredColumn(reader, getOrdinal, reader.GetGuid, "id")
+            member __.id = RequiredColumn(reader, getOrdinal, reader.GetInt32, "id")
             member __.path = RequiredColumn(reader, getOrdinal, reader.GetString, "path")
 
             member __.Read() =
@@ -100,20 +100,20 @@ module ``public`` =
         type usersReader(reader: Npgsql.NpgsqlDataReader, getOrdinal) =
             member __.id = RequiredColumn(reader, getOrdinal, reader.GetGuid, "id")
             member __.username = RequiredColumn(reader, getOrdinal, reader.GetString, "username")
-            member __.password = OptionalBinaryColumn(reader, getOrdinal, reader.GetValue, "password")
-            member __.scrobbling = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "scrobbling")
-            member __.admin_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "admin_role")
-            member __.settings_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "settings_role")
-            member __.download_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "download_role")
-            member __.upload_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "upload_role")
-            member __.playlist_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "playlist_role")
-            member __.cover_art_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "cover_art_role")
-            member __.podcast_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "podcast_role")
-            member __.comment_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "comment_role")
-            member __.stream_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "stream_role")
-            member __.jukebox_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "jukebox_role")
-            member __.share_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "share_role")
-            member __.video_conversion_role = RequiredColumn(reader, getOrdinal, reader.GetBoolean, "video_conversion_role")
+            member __.password = RequiredColumn(reader, getOrdinal, reader.GetString, "password")
+            member __.scrobbling = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "scrobbling")
+            member __.admin_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "admin_role")
+            member __.settings_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "settings_role")
+            member __.download_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "download_role")
+            member __.upload_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "upload_role")
+            member __.playlist_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "playlist_role")
+            member __.cover_art_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "cover_art_role")
+            member __.podcast_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "podcast_role")
+            member __.comment_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "comment_role")
+            member __.stream_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "stream_role")
+            member __.jukebox_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "jukebox_role")
+            member __.share_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "share_role")
+            member __.video_conversion_role = OptionalColumn(reader, getOrdinal, reader.GetBoolean, "video_conversion_role")
             member __.max_bit_rate = OptionalColumn(reader, getOrdinal, reader.GetInt32, "max_bit_rate")
             member __.avatar_last_changed = OptionalColumn(reader, getOrdinal, reader.GetDateTime, "avatar_last_changed")
 
