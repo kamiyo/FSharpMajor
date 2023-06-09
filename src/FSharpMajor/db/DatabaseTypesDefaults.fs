@@ -1,23 +1,24 @@
-module DatabaseTypes.Defaults
+module FSharpMajor.DatabaseTypes.Defaults
 
-open DatabaseTypes.``public``
+open FSharpMajor.DatabaseTypes.``public``
 
+// Default instances of database types
 let defaultUser =
     { id = System.Guid.Empty
       username = ""
       password = ""
-      scrobbling = None
-      admin_role = None
-      settings_role = None
-      download_role = None
-      upload_role = None
-      playlist_role = None
-      cover_art_role = None
-      podcast_role = None
-      comment_role = None
-      stream_role = None
-      jukebox_role = None
-      share_role = None
-      video_conversion_role = None
+      scrobbling = true
+      admin_role = false
+      settings_role = false
+      download_role = true
+      upload_role = false
+      playlist_role = true
+      cover_art_role = true
+      podcast_role = true
+      comment_role = true
+      stream_role = true
+      jukebox_role = false
+      share_role = true
+      video_conversion_role = true
       max_bit_rate = None
       avatar_last_changed = None }

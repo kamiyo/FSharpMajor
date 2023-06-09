@@ -1,19 +1,19 @@
-module Router
+module FSharpMajor.Router
 
 open Giraffe
 
-open API.System
+open FSharpMajor.API.System
+open FSharpMajor.Authorization
 
-let apiRouter : HttpHandler =
-    choose [
-        route "/ping.view" >=> pingHandler
-        route "/getLicense.view" >=> licenseHandler
-    ]
+let apiRouter: HttpHandler =
+    choose
+        [ route "/ping.view" >=> pingHandler
+          route "/getLicense.view" >=> licenseHandler ]
 
-let rootRouter : HttpHandler =
-    choose [
-        GET >=> choose [
-            subRoute "/rest" (warbler (fun _ -> apiRouter))
-        ]
-        RequestErrors.NOT_FOUND "Not Found"
-    ]
+let rootRouter: HttpHandler =
+    choose
+        [ GET
+          >=> setXmlType
+          >=> requiresAuthentication subsonicError
+          >=> choose [ subRoute "/rest" apiRouter ]
+          RequestErrors.NOT_FOUND "Not Found" ]

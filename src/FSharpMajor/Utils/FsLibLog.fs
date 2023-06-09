@@ -1,4 +1,4 @@
-namespace FsLibLog
+namespace FSharpMajor.FsLibLog
 
 open System.Text.RegularExpressions
 

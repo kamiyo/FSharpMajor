@@ -6,20 +6,19 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Utils/FsLibLog.fs" />
-    <Compile Include="Utils/Environment.fs" />
     <Compile Include="DB/Encryption.fs" />
     <Compile Include="DB/DatabaseTypes.fs" />
     <Compile Include="DB/DatabaseTypesDefaults.fs" />
     <Compile Include="DB/Database.fs" />
-    <Compile Include="Core/API/Authorization.fs" />
     <Compile Include="Core/API/Types.fs" />
+    <Compile Include="Utils/XmlSerializer.fs" />
     <Compile Include="Core/API/System.fs" />
     <Compile Include="Core/API/User.fs" />
+    <Compile Include="Core/Authorization.fs" />
+    <Compile Include="Core/Initialize.fs" />
     <Compile Include="Core/Router.fs" />
     <Compile Include="Core/Scanner.fs" />
     <Compile Include="Program.fs" />
-    <None Include="scripts\getVersion.fsx" />
-    <Content Include="scripts\getVersion.ps1" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="dotenv.net" Version="3.1.2" />

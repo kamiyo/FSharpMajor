@@ -1,10 +1,11 @@
-module API.Types
+module FSharpMajor.API.Types
 
 open System.Reflection
 open System.Xml.Serialization
 
 open FSharp.Data
-open FsLibLog
+open FSharpMajor.FsLibLog
+
 
 
 [<Literal>]
@@ -32,15 +33,15 @@ let upCastAttributesInOption attribute = attribute :> BaseAttributes
 type ErrorAttributes(?code, ?message) =
     inherit BaseAttributes()
     member __.Code: int = defaultArg code 0
-    member __.Message: string option = defaultArg message None
+    member __.Message: string option = message
 
 
 type LicenseAttributes(?valid, ?email, ?licenseExpires, ?trialExpires) =
     inherit BaseAttributes()
     member __.Valid: bool = defaultArg valid true
     member __.Email: string option = defaultArg email None
-    member __.LicenseExpires: string option = defaultArg licenseExpires None
-    member __.TrialExpires: string option = defaultArg trialExpires None
+    member __.LicenseExpires: string option = licenseExpires
+    member __.TrialExpires: string option = trialExpires
 
 
 type UserAttributes

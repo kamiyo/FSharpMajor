@@ -1,40 +1,42 @@
-module Database
+module FSharpMajor.Database
 
-open SqlHydra.Query
+open dotenv.net
 open FsConfig
 open Npgsql
+open SqlHydra.Query
+
+DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
 
 [<Convention("POSTGRES")>]
-type Config = {
-    User: string;
-    Password: string;
-    Db: string;
-    Port: int;
-    Host: string;
-}
+type Config =
+    { User: string
+      Password: string
+      Db: string
+      Port: int
+      Host: string }
 
 let config =
     match EnvConfig.Get<Config>() with
     | Ok config -> config
     | Error error ->
-      match error with
-      | NotFound envVarName ->
-        failwithf "Environment variable %s not found" envVarName
-      | BadValue (envVarName, value) ->
-        failwithf "Environment variable %s has invalid value %s" envVarName value
-      | NotSupported msg ->
-        failwith msg
+        match error with
+        | NotFound envVarName -> failwithf "Environment variable %s not found" envVarName
+        | BadValue(envVarName, value) -> failwithf "Environment variable %s has invalid value %s" envVarName value
+        | NotSupported msg -> failwith msg
 
-let openContext() =
+let openContext () =
     let compiler = SqlKata.Compilers.PostgresCompiler()
-    let {
-        User = user;
-        Password = password;
-        Db = dbName;
-        Port = port;
-        Host = host;
-    } = config
-    let connString = $"Host={host};Password={password};Username={user};Database={dbName};Port={port}"
+
+    let { User = user
+          Password = password
+          Db = dbName
+          Port = port
+          Host = host } =
+        config
+
+    let connString =
+        $"Host={host};Password={password};Username={user};Database={dbName};Port={port}"
+
     let conn = new NpgsqlConnection(connString)
-    conn.Open();
+    conn.Open()
     new QueryContext(conn, compiler)

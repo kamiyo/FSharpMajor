@@ -1,26 +1,30 @@
-module Encryption
+module FSharpMajor.Encryption
 
-open FSharp.Data
 open System
 open System.Text
 open System.IO
 open System.Security.Cryptography
-open System.Security.Cryptography
-open System.Text
 
+open FSharp.Data
+
+// Fallback if no encryption key is set in env
 [<Literal>]
 let defaultEncryptionKey = "V0/IwzP39PQhmYh9H/yBXw=="
 
+// Get a literal of the encryption key at compile-time
+// Do not change once program is initially built.
 [<Literal>]
 let encryptionKey =
     LiteralProviders.Env<"ENCRYPTION_KEY", defaultEncryptionKey>.Value
 
-// Prepare MD5
+// Prepare MD5, maybe saves overhead?
 let md5 = MD5.Create()
 
+// Prepare AES, maybe saves overhead?
+let aesAlg = Aes.Create()
+aesAlg.Key <- Convert.FromBase64String(encryptionKey)
+
 let decodeMessage (iv: byte array) (b64msg: byte array) =
-    use aesAlg = Aes.Create()
-    aesAlg.Key <- Convert.FromBase64String(encryptionKey)
     aesAlg.IV <- iv
     let decryptor = aesAlg.CreateDecryptor()
     use msDecrypt = new MemoryStream(b64msg)
@@ -29,8 +33,6 @@ let decodeMessage (iv: byte array) (b64msg: byte array) =
     srDecrypt.ReadToEnd()
 
 let encodeMessage (msg: string) =
-    use aesAlg = Aes.Create()
-    aesAlg.Key <- Convert.FromBase64String(encryptionKey)
     aesAlg.GenerateIV()
     let encryptor = aesAlg.CreateEncryptor()
     use msEncrypt = new MemoryStream()
@@ -53,10 +55,9 @@ let decryptPassword (encrypted: string) =
     let (iv, cipher) = encrypted |> Convert.FromBase64String |> Array.splitAt 16
     cipher |> decodeMessage iv
 
-// storedPass should be decrypted
-let checkHashedPassword (hashed: string, salt: string, storedPass: string) =
+let checkHashedPassword (hashed: string) (salt: string) (storedPassDecrypted: string) =
     let toCheck =
-        storedPass + salt
+        storedPassDecrypted + salt
         |> UTF8Encoding.UTF8.GetBytes
         |> md5.ComputeHash
         |> Convert.ToHexString

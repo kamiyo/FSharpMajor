@@ -1,4 +1,4 @@
-module Utils.Environment
+module FSharpMajor.Utils.Environment
 
 open dotenv.net
 open FsConfig

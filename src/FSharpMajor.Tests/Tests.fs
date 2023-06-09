@@ -15,8 +15,8 @@ type EncryptionTest(output: ITestOutputHelper) =
     [<Fact>]
     member __.``Encryption and decryption are symmetric``() =
         let message = "This is a test"
-        let encrypted = encryptPassword message
-        let decrypted = decryptPassword encrypted
+
+        let decrypted = message |> encryptPassword |> decryptPassword
 
         decrypted |> shouldEqual message
 
@@ -32,6 +32,6 @@ type EncryptionTest(output: ITestOutputHelper) =
             |> md5.ComputeHash
             |> Convert.ToHexString
 
-        checkHashedPassword (hashed, salt, storedPass) |> shouldEqual true
+        checkHashedPassword hashed salt storedPass |> shouldEqual true
 
     member private __.output: ITestOutputHelper = output
