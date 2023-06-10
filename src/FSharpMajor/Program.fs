@@ -19,6 +19,7 @@ module Program =
     open Initialize
     open Router
     open Authorization
+    open DatabaseService
 
     let exitCode = 0
 
@@ -30,6 +31,8 @@ module Program =
     let configureServices (services: IServiceCollection) =
         services.AddGiraffe() |> ignore
 
+        services.AddSingleton<IDatabaseService, DatabaseService>() |> ignore
+
         services
             .AddAuthentication("Basic")
             .AddScheme<BasicAuthenticationOptions, BasicAuthHandler>("Basic", null)
@@ -40,6 +43,7 @@ module Program =
 
         services.AddSingleton<Xml.ISerializer>(CustomXmlSerializer(xmlWriterSettings))
         |> ignore
+
 
     let log =
         LoggerConfiguration()

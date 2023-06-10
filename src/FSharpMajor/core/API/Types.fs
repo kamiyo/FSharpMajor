@@ -5,6 +5,7 @@ open System.Xml.Serialization
 
 open FSharp.Data
 open FSharpMajor.FsLibLog
+open System
 
 
 
@@ -81,7 +82,7 @@ type UserAttributes
     member __.JukeboxRole: bool = defaultArg jukeboxRole false
     member __.ShareRole: bool = defaultArg shareRole false
     member __.VideoConversionRole: bool = defaultArg videoConversionRole false
-    member __.AvatarLastChanged: bool option = defaultArg avatarLastChanged None
+    member __.AvatarLastChanged: DateTime option = defaultArg avatarLastChanged None
 
 type MusicFolderAttributes(?id, ?name) =
     inherit BaseAttributes()

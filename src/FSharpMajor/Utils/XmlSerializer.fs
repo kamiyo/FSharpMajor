@@ -7,6 +7,7 @@ open System.Xml
 open System.Xml.Serialization
 open FSharpMajor.API.Types
 open Giraffe
+open System.Globalization
 
 let xmlWriterSettings =
     XmlWriterSettings(Encoding = UTF8Encoding(false), Indent = true, OmitXmlDeclaration = true)
@@ -23,9 +24,10 @@ let (|SomeObj|_|) =
         else
             None
 
-let toStringFixBool (v: obj) =
+let toStringFixTypes (v: obj) =
     match v with
     | :? bool -> v.ToString() |> Json.JsonNamingPolicy.CamelCase.ConvertName
+    | :? DateTime -> (v :?> DateTime).ToString("o", CultureInfo.InvariantCulture)
     | _ -> v.ToString()
 
 type CustomXmlSerializer(settings) =
@@ -42,7 +44,7 @@ type CustomXmlSerializer(settings) =
                 match v with
                 | null -> ()
                 | SomeObj(value)
-                | value -> writer.WriteAttributeString(camelCaseKey, value |> toStringFixBool))
+                | value -> writer.WriteAttributeString(camelCaseKey, value |> toStringFixTypes))
 
         match node.Children with
         | Text text -> writer.WriteValue(text)

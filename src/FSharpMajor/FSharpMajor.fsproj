@@ -11,7 +11,10 @@
     <Compile Include="DB/DatabaseTypesDefaults.fs" />
     <Compile Include="DB/Database.fs" />
     <Compile Include="Core/API/Types.fs" />
+    <Compile Include="Core/API/TypeMappers.fs" />
     <Compile Include="Utils/XmlSerializer.fs" />
+    <Compile Include="DB/Service.fs" />
+    <Compile Include="Core/API/Error.fs" />
     <Compile Include="Core/API/System.fs" />
     <Compile Include="Core/API/User.fs" />
     <Compile Include="Core/Authorization.fs" />

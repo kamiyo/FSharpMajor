@@ -11,14 +11,14 @@ let licenseHandler: HttpHandler =
     fun (next: HttpFunc) (ctx: HttpContext) ->
         let serializer = ctx.GetXmlSerializer()
 
-        let out =
+        let body =
             SubsonicResponse(children = XmlElements [| License(LicenseAttributes()) |])
             |> serializer.Serialize
 
-        setBody out next ctx
+        setBody body next ctx
 
 let pingHandler: HttpHandler =
     fun next ctx ->
         let serializer = ctx.GetXmlSerializer()
-        let out = SubsonicResponse() |> serializer.Serialize
-        setBody out next ctx
+        let body = SubsonicResponse() |> serializer.Serialize
+        setBody body next ctx

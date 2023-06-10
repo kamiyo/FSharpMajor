@@ -2,21 +2,17 @@ module FSharpMajor.Authorization
 
 open System.Security.Claims
 open System.Security.Principal
-open System.Threading.Tasks
 
 open Microsoft.AspNetCore.Authentication
-open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.Primitives
-
-open Giraffe
+open FSharpMajor.DatabaseService
 
 open SqlHydra.Query.SelectBuilders
 
-open FSharpMajor.API.Types
-open FSharpMajor.Database
 open FSharpMajor.DatabaseTypes
 open FSharpMajor.DatabaseTypes.``public``
 open FSharpMajor.Encryption
+open FSharpMajor.API.Error
 
 type Queries =
     { U: StringValues option
@@ -25,28 +21,37 @@ type Queries =
 
 
 let getRoles user =
-    [ ("Admin", user.admin_role)
-      ("Settings", user.settings_role)
-      ("Download", user.download_role)
-      ("Upload", user.upload_role)
-      ("Playlist", user.playlist_role)
-      ("CoverArt", user.cover_art_role)
-      ("Podcast", user.podcast_role)
-      ("Comment", user.comment_role)
-      ("Stream", user.stream_role)
-      ("Jukebox", user.jukebox_role)
-      ("Share", user.share_role)
-      ("VideoConversion", user.video_conversion_role) ]
-    |> Map.ofList
-    |> Map.filter (fun k v -> v)
-    |> Map.keys
+    let map =
+        [ ("Admin", user.admin_role)
+          ("Settings", user.settings_role)
+          ("Download", user.download_role)
+          ("Upload", user.upload_role)
+          ("Playlist", user.playlist_role)
+          ("CoverArt", user.cover_art_role)
+          ("Podcast", user.podcast_role)
+          ("Comment", user.comment_role)
+          ("Stream", user.stream_role)
+          ("Jukebox", user.jukebox_role)
+          ("Share", user.share_role)
+          ("VideoConversion", user.video_conversion_role) ]
+
+    seq {
+        for (k, v) in map do
+            if v then
+                yield k
+    }
 
 type IAuthenticationManager =
-    abstract member Authenticate: username: string -> token: string -> salt: string -> Claim list option
+    abstract member Authenticate:
+        username: string ->
+        token: string ->
+        salt: string ->
+        openContext: (unit -> SqlHydra.Query.QueryContext) ->
+            Claim seq option
 
 type SubsonicAuthenticationManager() =
     interface IAuthenticationManager with
-        member __.Authenticate username token salt =
+        member __.Authenticate username token salt openContext =
             let userResults =
                 selectTask HydraReader.Read (Create openContext) {
                     for u in users do
@@ -62,8 +67,14 @@ type SubsonicAuthenticationManager() =
                 match checkHashedPassword token salt decrypted with
                 | false -> None
                 | true ->
-                    let roles = [ for r in getRoles user -> new Claim(ClaimTypes.Role, r) ]
-                    let claims = new Claim(ClaimTypes.Name, user.username) :: roles
+                    let roles = seq { for r in getRoles user -> new Claim(ClaimTypes.Role, r) }
+
+                    let claims =
+                        seq {
+                            yield! roles
+                            yield new Claim(ClaimTypes.Name, user.username)
+                        }
+
                     Some(claims))
             |> Option.flatten
 
@@ -72,7 +83,8 @@ type BasicAuthenticationOptions() =
         inherit AuthenticationSchemeOptions()
     end
 
-type BasicAuthHandler(options, logger, encoder, clock, authManager: IAuthenticationManager) =
+type BasicAuthHandler
+    (options, logger, encoder, clock, authManager: IAuthenticationManager, queryContext: IDatabaseService) =
     inherit AuthenticationHandler<BasicAuthenticationOptions>(options, logger, encoder, clock)
     member __.authManager = authManager
 
@@ -92,39 +104,26 @@ type BasicAuthHandler(options, logger, encoder, clock, authManager: IAuthenticat
             && query.TryGetValue("s", &salt)
         with
         | true ->
-            match __.authManager.Authenticate username[0] token[0] salt[0] with
+            let openContext = queryContext.CreateContext()
+
+            match __.authManager.Authenticate username[0] token[0] salt[0] openContext with
             | Some claims ->
                 let identity = new ClaimsIdentity(claims, __.Scheme.Name)
 
                 let roles =
-                    claims |> List.tail |> List.map (fun claim -> claim.Value) |> Array.ofList
+                    seq {
+                        for c in claims do
+                            if c.Type = ClaimTypes.Role then
+                                c.Value
+                    }
+                    |> Array.ofSeq
 
                 let principal = new GenericPrincipal(identity, roles)
                 let ticket = new AuthenticationTicket(principal, __.Scheme.Name)
                 task { return AuthenticateResult.Success(ticket) }
             | None ->
-                __.Context.Items["subsonicCode"] <- 40
+                __.Context.Items["subsonicCode"] <- ErrorEnum.Credentials
                 task { return AuthenticateResult.Fail("Unauthorized") }
         | false ->
-            __.Context.Items["subsonicCode"] <- 10
+            __.Context.Items["subsonicCode"] <- ErrorEnum.Params
             task { return AuthenticateResult.Fail("Unauthorized") }
-
-let subsonicError: HttpHandler =
-    fun (_: HttpFunc) (ctx: HttpContext) ->
-        let serializer = ctx.GetXmlSerializer()
-        let code: int = ctx.Items["subsonicCode"] :?> int
-
-        let msg =
-            match code with
-            | 40 -> "Wrong username or password."
-            | 10 -> "Required parameter is missing."
-            | _ -> "Unknown error"
-
-        let failedResp =
-            SubsonicResponse(
-                SubsonicResponseAttributes(status = "failed"),
-                children = XmlElements [| Error(ErrorAttributes(code = code, message = msg)) |]
-            )
-            |> serializer.Serialize
-
-        setBody failedResp (Some >> Task.FromResult) ctx
