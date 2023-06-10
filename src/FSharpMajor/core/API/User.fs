@@ -34,7 +34,7 @@ let userHandler: HttpHandler =
                 setBody body next ctx
             | None ->
                 ctx.Items["subsonicCode"] <- ErrorEnum.NotFound
-                subsonicError () next ctx
+                subsonicError next ctx
         | None ->
             ctx.Items["subsonicCode"] <- ErrorEnum.Params
-            subsonicError () next ctx
+            subsonicError next ctx

@@ -1,12 +1,11 @@
 module FSharpMajor.API.Types
 
+open System
 open System.Reflection
 open System.Xml.Serialization
 
 open FSharp.Data
 open FSharpMajor.FsLibLog
-open System
-
 
 
 [<Literal>]

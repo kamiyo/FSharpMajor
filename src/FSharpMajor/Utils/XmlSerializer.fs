@@ -1,13 +1,15 @@
 module FSharpMajor.XmlSerializer
 
 open System
+open System.Globalization
 open System.IO
 open System.Text
 open System.Xml
 open System.Xml.Serialization
-open FSharpMajor.API.Types
 open Giraffe
-open System.Globalization
+
+open FSharpMajor.API.Types
+
 
 let xmlWriterSettings =
     XmlWriterSettings(Encoding = UTF8Encoding(false), Indent = true, OmitXmlDeclaration = true)

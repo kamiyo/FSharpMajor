@@ -15,7 +15,12 @@ type ErrorEnum =
     | Trial = 60
     | NotFound = 70
 
-let subsonicError () : HttpHandler =
+let setSubsonicCode (code: ErrorEnum) : HttpHandler =
+    fun (next: HttpFunc) (ctx: HttpContext) ->
+        ctx.Items["subsonicCode"] <- code
+        next ctx
+
+let subsonicError: HttpHandler =
     fun (_: HttpFunc) (ctx: HttpContext) ->
         let serializer = ctx.GetXmlSerializer()
         let code: int = ctx.Items["subsonicCode"] :?> int

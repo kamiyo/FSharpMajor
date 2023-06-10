@@ -1,12 +1,12 @@
 module FSharpMajor.DatabaseService
 
+open System
+open System.Runtime.CompilerServices
+
 open Microsoft.AspNetCore.Http
-open Microsoft.AspNetCore.Http.Extensions
 
 open SqlHydra.Query
 open FSharpMajor.Database
-open System
-open System.Runtime.CompilerServices
 
 type IDatabaseService =
     abstract member CreateContext: unit -> (unit -> QueryContext)

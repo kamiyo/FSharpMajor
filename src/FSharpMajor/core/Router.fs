@@ -5,17 +5,21 @@ open Giraffe
 open FSharpMajor.API.Error
 open FSharpMajor.API.System
 open FSharpMajor.API.User
+open FSharpMajor.API.Users
 
 let apiRouter: HttpHandler =
     choose
         [ route "/ping.view" >=> pingHandler
           route "/getLicense.view" >=> licenseHandler
-          route "/getUser.view" >=> userHandler ]
+          route "/getUser.view" >=> userHandler
+          route "/getUsers.view"
+          >=> requiresRole "Admin" (setSubsonicCode ErrorEnum.Unauthorized >=> subsonicError)
+          >=> usersHandler ]
 
 let rootRouter: HttpHandler =
     choose
         [ GET
           >=> setXmlType
-          >=> requiresAuthentication (subsonicError ())
+          >=> requiresAuthentication subsonicError
           >=> choose [ subRoute "/rest" apiRouter ]
-          subsonicError () ]
+          subsonicError ]

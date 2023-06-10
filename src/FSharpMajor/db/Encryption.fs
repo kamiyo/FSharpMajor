@@ -1,9 +1,9 @@
 module FSharpMajor.Encryption
 
 open System
-open System.Text
 open System.IO
 open System.Security.Cryptography
+open System.Text
 
 open FSharp.Data
 

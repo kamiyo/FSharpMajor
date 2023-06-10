@@ -1,5 +1,4 @@
 open System.Xml
-open System.IO
 
 let doc = new XmlDocument()
 doc.Load("./FSharpMajor.fsproj")
