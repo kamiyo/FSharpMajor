@@ -2,19 +2,16 @@ module FSharpMajor.Scanner
 
 open System
 open System.IO
-
-open System.Threading.Tasks
-open FSharpMajor.DatabaseTypes.``public``
-open FSharpMajor.DatabaseTypes.``public``
-open Dapper.FSharp.PostgreSQL
-open Microsoft.AspNetCore.StaticFiles
-open System.Data
-open FSharpMajor.FsLibLog
-open FSharpMajor.Database
-open Npgsql
 open System.Security.Cryptography
+open FSharpMajor.DatabaseTypes.``public``
+open Microsoft.AspNetCore.StaticFiles
+
+open Dapper.FSharp.PostgreSQL
+
+open FSharpMajor.FsLibLog
+open FSharpMajor.DatabaseTypes.``public``
+open FSharpMajor.Database
 open FSharpMajor.InsertTasks
-open TagLib
 
 let MIMEProvider = FileExtensionContentTypeProvider()
 let md5 = MD5.Create()
@@ -165,7 +162,8 @@ let isImage (mimeType: string) =
     |> List.exists (fun t -> mimeType.Contains(t, StringComparison.InvariantCultureIgnoreCase))
 
 let scanFile (rootDirInfo: DirectoryInfo) (fileInfo: FileInfo) (parentId: Guid option) =
-    let logger = LogProvider.getLoggerByFunc()
+    let logger = LogProvider.getLoggerByFunc ()
+
     try
         match fileInfo.Exists with
         | false -> NoResult
@@ -177,8 +175,8 @@ let scanFile (rootDirInfo: DirectoryInfo) (fileInfo: FileInfo) (parentId: Guid o
                 // Image, so insert it as album art
                 scanImage fileInfo mime
             | _ ->
-                let logger = LogProvider.getLoggerByFunc()
-                logger.info(Log.setMessage $"Scanning File: {fileInfo.Name}, {fileInfo.FullName}")
+                let logger = LogProvider.getLoggerByFunc ()
+                logger.info (Log.setMessage $"Scanning File: {fileInfo.Name}, {fileInfo.FullName}")
                 // Insert images in tag
                 let images = getImagesFromTag fileInfo |> Seq.toList
 
@@ -254,30 +252,32 @@ let scanFile (rootDirInfo: DirectoryInfo) (fileInfo: FileInfo) (parentId: Guid o
                       ItemArtists = itemArtists
                       AlbumCoverArt = albumCoverArt
                       AlbumGenres = albumGenres }
-        with
-        | :? TagLib.UnsupportedFormatException as ex ->
-            logger.info(Log.setMessage $"File {fileInfo.FullName} is not media type.")
-            NoResult
-        | error ->
-            logger.error(Log.setMessage $"{error.Message}")
-            raise error
+    with
+    | :? TagLib.UnsupportedFormatException as ex ->
+        logger.info (Log.setMessage $"File {fileInfo.FullName} is not media type.")
+        NoResult
+    | error ->
+        logger.error (Log.setMessage $"{error.Message}")
+        raise error
 
-
-let rec traverseDirectories
-    (rootDirInfo: DirectoryInfo)
-    (dirAndParents: (DirectoryInfo * Guid option) list)
-    =
+// Recursive traverse directories
+// Pop current directory from list,
+// Scan all files, accumulating results,
+// Insert into database,
+// Then add found directories onto the list to feed into recursion.
+let rec traverseDirectories (rootDirInfo: DirectoryInfo) (dirAndParents: (DirectoryInfo * Guid option) list) =
     match dirAndParents with
     | [] -> ()
     | (currentDir, parentId) :: rest ->
-        let logger = LogProvider.getLoggerByFunc()
-        logger.info(Log.setMessage $"Current Dir: {currentDir}")
+        let logger = LogProvider.getLoggerByFunc ()
+        logger.info (Log.setMessage $"Current Dir: {currentDir}")
+
         try
             try
                 match currentDir.GetFiles() |> Array.sortBy (fun d -> d.Name) with
                 | [||] -> ()
                 | files ->
-                    logger.info(Log.setMessage $"{files.Length}")
+                    logger.debug (Log.setMessage $"Found files in currentDir: {files.Length}")
                     let fileList = List.ofArray files
 
                     // Make a directory directoryItem
@@ -289,12 +289,13 @@ let rec traverseDirectories
                     let insertedDirectory = insertDirectoryTask.Result |> Seq.head
 
                     // Scan children files
+                    // Can parallelize this?
                     let scanResult =
                         fileList
                         |> List.map (fun f -> scanFile rootDirInfo f (Some insertedDirectory.id))
 
-                    logger.info(Log.setMessage $"Scanned: {scanResult.Length}")
-                    
+                    logger.debug (Log.setMessage $"Scanned in folder: {scanResult.Length}")
+
                     // Separate results into their types by folding
                     let (imageInfos, fileResults): (ImageInfo Set * FileResult list) =
                         scanResult
@@ -307,8 +308,8 @@ let rec traverseDirectories
                                     let prev = (snd acc)
                                     (fst acc, f :: prev))
                             (Set.empty, List<FileResult>.Empty)
-                            
-                    logger.info(Log.setMessage $"Images: {imageInfos |> Set.count}, Files: {fileResults.Length}")
+
+                    logger.debug (Log.setMessage $"Images: {imageInfos |> Set.count}, Files: {fileResults.Length}")
 
                     // Create an accumulator with everything empty, but add in the imageInfos we got from image files
                     let accumulator =
@@ -327,45 +328,53 @@ let rec traverseDirectories
                                   ItemsAlbums = accum.ItemsAlbums.Add r.ItemAlbum
                                   AlbumsArtists =
                                     r.AlbumArtists |> List.fold (fun acc aa -> acc.Add aa) accum.AlbumsArtists
-                                  ItemsArtists = r.ItemArtists |> List.fold (fun acc ia -> acc.Add ia) accum.ItemsArtists
+                                  ItemsArtists =
+                                    r.ItemArtists |> List.fold (fun acc ia -> acc.Add ia) accum.ItemsArtists
                                   AlbumsCoverArt =
                                     r.AlbumCoverArt |> List.fold (fun acc aa -> acc.Add aa) accum.AlbumsCoverArt
-                                  AlbumsGenres = r.AlbumGenres |> List.fold (fun acc ag -> acc.Add ag) accum.AlbumsGenres })
+                                  AlbumsGenres =
+                                    r.AlbumGenres |> List.fold (fun acc ag -> acc.Add ag) accum.AlbumsGenres })
                             accumulator
 
-                    logger.info(Log.setMessage $"Items: {reduced.Items.Length}")                
-                    logger.info(Log.setMessage $"""Items: {reduced.Items |> List.choose(fun i -> i.path) |> String.concat ", " }""")
+                    logger.debug (Log.setMessage $"Items: {reduced.Items.Length}")
+
+                    logger.debug (
+                        Log.setMessage
+                            $"""Items: {reduced.Items |> List.choose (fun i -> i.path) |> String.concat ", "}"""
+                    )
 
                     // First insert albums (which will check existing)
-                    let insertAlbumsTask =
-                            insertAlbums (reduced.Albums |> Set.toList)
+                    let insertAlbumsTask = insertAlbums (reduced.Albums |> Set.toList)
                     // Insert cover art
-                    let insertImagesTask =
-                            insertImages (reduced.Images |> Set.toList)
+                    let insertImagesTask = insertImages (reduced.Images |> Set.toList)
                     // Insert artists, TODO add image_url later
-                    let insertArtistsTask = 
-                            insertArtists (reduced.Artists |> Set.toList)
+                    let insertArtistsTask = insertArtists (reduced.Artists |> Set.toList)
                     // Insert genres
-                    let insertGenresTask = 
-                            insertGenres (reduced.Genres |> Set.toList)
+                    let insertGenresTask = insertGenres (reduced.Genres |> Set.toList)
                     // Insert directory_items
                     let insertItemsTask = insertDirectoryItem reduced.Items
 
                     let albums = insertAlbumsTask.Result
                     let images = insertImagesTask.Result
-                    let artists = insertArtistsTask.Result 
+                    let artists = insertArtistsTask.Result
                     let items = insertItemsTask.Result
                     let genres = insertGenresTask.Result
 
+                    logger.debug (Log.setMessage $"albums: %A{albums}")
+                    logger.debug (Log.setMessage $"images: %A{images}")
+                    logger.debug (Log.setMessage $"artists: %A{artists}")
+                    logger.debug (Log.setMessage $"items: %A{items}")
+                    logger.debug (Log.setMessage $"genres: %A{genres}")
+
                     // Time for relations
-                    // INSERT RELATIONS!
+                    // Create the objects to insert first, then insert
                     let albumsArtistsToInsert =
                         reduced.AlbumsArtists
                         |> Set.toList
                         |> List.map (fun (albumInfo, artistInfo) ->
                             let artist = artists |> Seq.find (fun a -> a.name = artistInfo.Name)
 
-                            let album = albums |> Seq.find (fun a -> albumsEqual albumInfo a)
+                            let album = albums |> Seq.find (albumsEqual albumInfo)
 
                             { artist_id = artist.id
                               album_id = album.id })
@@ -393,7 +402,7 @@ let rec traverseDirectories
                         reduced.AlbumsCoverArt
                         |> Set.toList
                         |> List.map (fun (albumInfo, imageInfo) ->
-                            let album = albums |> Seq.find (fun a -> albumsEqual albumInfo a)
+                            let album = albums |> Seq.find (albumsEqual albumInfo)
                             let image = images |> Seq.find (fun i -> i.hash = imageInfo.Hash)
 
                             { cover_art_id = image.id
@@ -405,7 +414,7 @@ let rec traverseDirectories
                         reduced.AlbumsGenres
                         |> Set.toList
                         |> List.map (fun (albumInfo, genreString) ->
-                            let album = albums |> Seq.find (fun a -> albumsEqual albumInfo a)
+                            let album = albums |> Seq.find (albumsEqual albumInfo)
                             let genre = genres |> Seq.find (fun g -> g.name = genreString)
 
                             { album_id = album.id
@@ -422,17 +431,28 @@ let rec traverseDirectories
                         reduced.ItemsAlbums
                         |> Set.toList
                         |> List.map (fun (guid, albumInfo) ->
-                            let album = albums |> Seq.find (fun a -> albumsEqual albumInfo a)
+                            let album = albums |> Seq.find (albumsEqual albumInfo)
                             { item_id = guid; album_id = album.id })
                         |> List.append directoryAlbums
 
-
                     let insertItemsAlbumsTask = insertItemsAlbums itemsAlbumsToInsert
 
+                    // Make sure all tasks done
+                    let albumsArtists = insertAlbumsArtistsTask.Result
+                    let itemsArtists = insertItemsArtistsTask.Result
+                    let itemsAlbums = insertItemsAlbumsTask.Result
+                    let albumsCoverArt = insertAlbumsCoverArtTask.Result
+                    let albumsGenres = insertAlbumsGenresTask.Result
+
+                    logger.debug (Log.setMessage $"albumsArtists: %A{albumsArtists}")
+                    logger.debug (Log.setMessage $"itemsArtists: %A{itemsArtists}")
+                    logger.debug (Log.setMessage $"itemsAlbums: %A{itemsAlbums}")
+                    logger.debug (Log.setMessage $"albumsCoverArt: %A{albumsCoverArt}")
+                    logger.debug (Log.setMessage $"albumsGenres: %A{albumsGenres}")
                     ()
             // Should notify mailboxprocessor of Seq.length items
-            with
-            | exn -> logger.error(Log.setMessage $"%A{exn}")
+            with exn ->
+                logger.error (Log.setMessage $"%A{exn}")
         finally
             let newRest =
                 try
@@ -444,28 +464,26 @@ let rec traverseDirectories
                         |> List.fold (fun state dir -> (dir, parentId) :: state) rest
                 with _ ->
                     rest
-
+            // Recurse
             traverseDirectories rootDirInfo newRest
-
-// let parseRootDirs () =
 
 
 let startTraverseDirectories () =
     task {
-        use conn = npgsqlSource.OpenConnection()
+        use! conn = npgsqlSource.OpenConnectionAsync()
 
-        let getRoots =
+        let! roots =
             select {
                 for _root in libraryRootsTable do
                     selectAll
             }
             |> conn.SelectAsync<library_roots>
 
-        let roots = getRoots.Result
 
         for root in roots do
             let dirInfo = DirectoryInfo(root.path)
 
+            // Later, also check if scan_completed is not null (Some)
             match dirInfo.Exists with
             | false ->
                 let logger = LogProvider.getLoggerByFunc ()
@@ -478,8 +496,12 @@ let startTraverseDirectories () =
                     |> List.map (fun d -> (d, None))
 
                 traverseDirectories dirInfo dirs
-                let updatedRoot = { root with scan_completed = Some DateTime.UtcNow }
-                let setCompletedTask =
+
+                let updatedRoot =
+                    { root with
+                        scan_completed = Some DateTime.UtcNow }
+
+                let! _ =
                     update {
                         for r in libraryRootsTable do
                             set updatedRoot
@@ -487,7 +509,30 @@ let startTraverseDirectories () =
                             where (r.id = root.id)
                     }
                     |> conn.UpdateAsync<library_roots>
-                    
-                setCompletedTask.Result |> ignore
+
+                ()
     }
-    
+
+let ScanForUpdates () =
+    task {
+        use! conn = npgsqlSource.OpenConnectionAsync()
+
+        let! roots =
+            select {
+                for _root in libraryRootsTable do
+                    selectAll
+            }
+            |> conn.SelectAsync<library_roots>
+
+
+        for root in roots do
+            let dirInfo = DirectoryInfo(root.path)
+
+            // Get directories
+            let! directories =
+                select {
+                    for items in directoryItemsTable do
+                        where (items.is_dir = true)
+                }
+                |> conn.SelectAsync<directory_items>
+    }

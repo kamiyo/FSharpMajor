@@ -1,80 +1,73 @@
-namespace FSharpMajor
+module FSharpMajor.Program
 
 open System
 
 open Serilog
 
-open FSharpMajor.FsLibLog
 open FSharpMajor.XmlSerializer
 
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
-open Microsoft.Extensions.Logging
 
 open Giraffe
 open Giraffe.SerilogExtensions
+open dotenv.net
 
-module Program =
-    open dotenv.net
+open Dapper.FSharp
 
-    open Dapper.FSharp
+open Initialize
+open Router
+open Authorization
+open DatabaseService
+open Scanner
 
-    open Initialize
-    open Router
-    open Authorization
-    open DatabaseService
-    open FsConfig
-    open Scanner
+DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
 
-    DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
+let exitCode = 0
 
-    let exitCode = 0
+let configureApp (app: IApplicationBuilder) =
+    app.UseAuthentication() |> ignore
+    app.UseGiraffe(SerilogAdapter.Enable rootRouter)
 
+let configureServices (services: IServiceCollection) =
+    services.AddGiraffe() |> ignore
 
-    let configureApp (app: IApplicationBuilder) =
-        app.UseAuthentication() |> ignore
-        app.UseGiraffe(SerilogAdapter.Enable rootRouter)
+    services.AddScoped<IDatabaseService, DatabaseService>() |> ignore
 
-    let configureServices (services: IServiceCollection) =
-        services.AddGiraffe() |> ignore
+    services
+        .AddAuthentication("Basic")
+        .AddScheme<BasicAuthenticationOptions, BasicAuthHandler>("Basic", null)
+    |> ignore
 
-        services.AddScoped<IDatabaseService, DatabaseService>() |> ignore
+    services.AddScoped<IAuthenticationManager, SubsonicAuthenticationManager>()
+    |> ignore
 
-        services
-            .AddAuthentication("Basic")
-            .AddScheme<BasicAuthenticationOptions, BasicAuthHandler>("Basic", null)
-        |> ignore
-
-        services.AddScoped<IAuthenticationManager, SubsonicAuthenticationManager>()
-        |> ignore
-
-        services.AddSingleton<Xml.ISerializer>(CustomXmlSerializer(xmlWriterSettings))
-        |> ignore
+    services.AddSingleton<Xml.ISerializer>(CustomXmlSerializer(xmlWriterSettings))
+    |> ignore
 
 
-    [<EntryPoint>]
-    let main args =
+[<EntryPoint>]
+let main args =
 
-        PostgreSQL.OptionTypes.register ()
+    PostgreSQL.OptionTypes.register ()
 
-        makeOrUpdateAdmin ()
-        makeLibraryRoots () |> ignore
-        let scanTask =
-            startTraverseDirectories ()
+    makeOrUpdateAdmin ()
+    makeLibraryRoots () |> ignore
+    let scanTask = startTraverseDirectories ()
 
-        Host
-            .CreateDefaultBuilder()
-            .ConfigureWebHostDefaults(fun webHostBuilder ->
-                webHostBuilder
-                    .UseUrls("http://*:8080")
-                    .Configure(configureApp)
-                    .ConfigureServices(configureServices)
-                |> ignore)
-            .UseSerilog()
-            .Build()
-            .Run()
+    Host
+        .CreateDefaultBuilder()
+        .ConfigureWebHostDefaults(fun webHostBuilder ->
+            webHostBuilder
+                .UseUrls("http://*:8080")
+                .Configure(configureApp)
+                .ConfigureServices(configureServices)
+            |> ignore)
+        .UseSerilog()
+        .Build()
+        .Run()
 
-        scanTask.Result
-        exitCode
+    scanTask.Result
+    exitCode
