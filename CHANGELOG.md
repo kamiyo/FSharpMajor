@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.1.0"></a>
+## [1.1.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.1.0) (2023-6-22)
+
+### Features
+
+* **core:** Half-working implementation of scanner. ([ebcd8fa](https://www.github.com/kamiyo/FSharpMajor/commit/ebcd8faaae9649d49acfc9571cadbbe62e97a6d5))
+
 <a name="1.0.5"></a>
 ## [1.0.5](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.0.5) (2023-6-9)
 
