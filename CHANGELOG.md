@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.2.0"></a>
+## [1.2.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.2.0) (2023-6-23)
+
+### Features
+
+* **core:** refactored insert tasks, started update scan ([30b559f](https://www.github.com/kamiyo/FSharpMajor/commit/30b559fd056d6e0fd9b1c844902c7f8768048a9c))
+
 <a name="1.1.0"></a>
 ## [1.1.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.1.0) (2023-6-22)
 
