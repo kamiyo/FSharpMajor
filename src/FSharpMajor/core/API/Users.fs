@@ -3,21 +3,23 @@ module FSharpMajor.API.Users
 open Giraffe
 open Microsoft.AspNetCore.Http
 open FSharpMajor.DatabaseService
-open SqlHydra.Query
 open FSharpMajor.DatabaseTypes
 open FSharpMajor.DatabaseTypes.``public``
 open FSharpMajor.API.Types
 open FSharpMajor.TypeMappers
+open Dapper.FSharp.PostgreSQL
 
 let usersHandler: HttpHandler =
     fun (next: HttpFunc) (ctx: HttpContext) ->
-        let openContext = ctx.GetDatabaseQueryContext().CreateContext()
+        let conn = ctx.GetDatabaseQueryContext().Connection
+        let usersTable = table<users>
 
         let usersTask =
-            selectTask HydraReader.Read (Create openContext) {
-                for u in users do
-                    select u
+            select {
+                for u in usersTable do
+                    selectAll
             }
+            |> conn.SelectAsync<users>
 
         let users =
             usersTask.Result

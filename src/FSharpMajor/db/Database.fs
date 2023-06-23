@@ -1,9 +1,11 @@
 module FSharpMajor.Database
 
+open Microsoft.Extensions.Logging
+open Serilog
 open dotenv.net
 open FsConfig
 open Npgsql
-open SqlHydra.Query
+open FSharpMajor.Utils.Logging
 
 DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
 
@@ -24,9 +26,7 @@ let config =
         | BadValue(envVarName, value) -> failwithf "Environment variable %s has invalid value %s" envVarName value
         | NotSupported msg -> failwith msg
 
-let openContext () =
-    let compiler = SqlKata.Compilers.PostgresCompiler()
-
+let connString =
     let { User = user
           Password = password
           Db = dbName
@@ -34,9 +34,8 @@ let openContext () =
           Host = host } =
         config
 
-    let connString =
-        $"Host={host};Password={password};Username={user};Database={dbName};Port={port}"
+    $"Host={host};Password={password};Username={user};Database={dbName};Port={port}"
 
-    let conn = new NpgsqlConnection(connString)
-    conn.Open()
-    new QueryContext(conn, compiler)
+let private dataSourceBuilder = new NpgsqlDataSourceBuilder(connString)
+dataSourceBuilder.UseLoggerFactory logger |> ignore
+let npgsqlSource = dataSourceBuilder.Build()

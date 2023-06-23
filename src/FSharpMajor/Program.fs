@@ -11,15 +11,24 @@ open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
+open Microsoft.Extensions.Logging
 
 open Giraffe
 open Giraffe.SerilogExtensions
 
 module Program =
+    open dotenv.net
+
+    open Dapper.FSharp
+
     open Initialize
     open Router
     open Authorization
     open DatabaseService
+    open FsConfig
+    open Scanner
+
+    DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
 
     let exitCode = 0
 
@@ -31,33 +40,29 @@ module Program =
     let configureServices (services: IServiceCollection) =
         services.AddGiraffe() |> ignore
 
-        services.AddSingleton<IDatabaseService, DatabaseService>() |> ignore
+        services.AddScoped<IDatabaseService, DatabaseService>() |> ignore
 
         services
             .AddAuthentication("Basic")
             .AddScheme<BasicAuthenticationOptions, BasicAuthHandler>("Basic", null)
         |> ignore
 
-        services.AddSingleton<IAuthenticationManager, SubsonicAuthenticationManager>()
+        services.AddScoped<IAuthenticationManager, SubsonicAuthenticationManager>()
         |> ignore
 
         services.AddSingleton<Xml.ISerializer>(CustomXmlSerializer(xmlWriterSettings))
         |> ignore
 
 
-    let log =
-        LoggerConfiguration()
-            .MinimumLevel.Verbose()
-            .WriteTo.Console()
-            .Enrich.FromLogContext()
-            .CreateLogger()
-
-    Log.Logger <- log
-
     [<EntryPoint>]
     let main args =
 
-        makeAdminIfNotExists () |> ignore
+        PostgreSQL.OptionTypes.register ()
+
+        makeOrUpdateAdmin ()
+        makeLibraryRoots () |> ignore
+        let scanTask =
+            startTraverseDirectories ()
 
         Host
             .CreateDefaultBuilder()
@@ -67,7 +72,9 @@ module Program =
                     .Configure(configureApp)
                     .ConfigureServices(configureServices)
                 |> ignore)
+            .UseSerilog()
             .Build()
             .Run()
 
+        scanTask.Result
         exitCode

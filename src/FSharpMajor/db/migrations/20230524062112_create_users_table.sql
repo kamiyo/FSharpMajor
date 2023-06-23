@@ -1,8 +1,8 @@
 -- migrate:up
 CREATE TABLE users (
     id              uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    username        varchar(32) NOT NULL,
-    password        varchar(255) NOT NULL,
+    username        varchar NOT NULL,
+    password        varchar NOT NULL,
     scrobbling      boolean NOT NULL DEFAULT true,
     admin_role      boolean NOT NULL DEFAULT false,
     settings_role   boolean NOT NULL DEFAULT false,
@@ -20,8 +20,8 @@ CREATE TABLE users (
     avatar_last_changed timestamp
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS user_idx ON users (username);
+CREATE UNIQUE INDEX IF NOT EXISTS users_username ON users(username);
 
 -- migrate:down
-DROP TABLE users;
-DROP INDEX IF EXISTS user_idx;
+DROP TABLE IF EXISTS users;
+DROP INDEX IF EXISTS users_username;

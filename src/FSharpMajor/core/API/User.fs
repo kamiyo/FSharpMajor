@@ -3,25 +3,27 @@ module FSharpMajor.API.User
 open Giraffe
 open Microsoft.AspNetCore.Http
 open FSharpMajor.DatabaseService
-open SqlHydra.Query
-open FSharpMajor.DatabaseTypes
-open FSharpMajor.DatabaseTypes.``public``
 open FSharpMajor.API.Types
 open FSharpMajor.TypeMappers
+open FSharpMajor.DatabaseTypes.``public``
+open Dapper.FSharp.PostgreSQL
+
 open Error
 
 let userHandler: HttpHandler =
     fun (next: HttpFunc) (ctx: HttpContext) ->
-        let openContext = ctx.GetDatabaseQueryContext().CreateContext()
+        let conn = ctx.GetDatabaseQueryContext().Connection
 
         match ctx.TryGetQueryStringValue "username" with
-        | Some username ->
+        | Some username when username = ctx.User.Identity.Name || ctx.User.IsInRole "Admin" ->
+            let usersTable = table<users>
+
             let users =
-                selectTask HydraReader.Read (Create openContext) {
-                    for u in users do
+                select {
+                    for u in usersTable do
                         where (u.username = username)
-                        select u
                 }
+                |> conn.SelectAsync<users>
 
             match Seq.tryHead users.Result with
             | Some user ->
@@ -35,6 +37,9 @@ let userHandler: HttpHandler =
             | None ->
                 ctx.Items["subsonicCode"] <- ErrorEnum.NotFound
                 subsonicError next ctx
+        | Some _ ->
+            ctx.Items["subsonicCode"] <- ErrorEnum.Unauthorized
+            subsonicError next ctx
         | None ->
             ctx.Items["subsonicCode"] <- ErrorEnum.Params
             subsonicError next ctx

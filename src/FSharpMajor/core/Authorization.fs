@@ -5,14 +5,18 @@ open System.Security.Principal
 
 open Microsoft.AspNetCore.Authentication
 open Microsoft.Extensions.Primitives
-open FSharpMajor.DatabaseService
 
-open SqlHydra.Query.SelectBuilders
+open Dapper.FSharp.PostgreSQL
+
+open FSharpMajor.DatabaseService
 
 open FSharpMajor.DatabaseTypes
 open FSharpMajor.DatabaseTypes.``public``
 open FSharpMajor.Encryption
 open FSharpMajor.API.Error
+
+
+open System.Data
 
 type Queries =
     { U: StringValues option
@@ -43,21 +47,19 @@ let getRoles user =
 
 type IAuthenticationManager =
     abstract member Authenticate:
-        username: string ->
-        token: string ->
-        salt: string ->
-        openContext: (unit -> SqlHydra.Query.QueryContext) ->
-            Claim seq option
+        username: string -> token: string -> salt: string -> connection: IDbConnection -> Claim seq option
 
 type SubsonicAuthenticationManager() =
     interface IAuthenticationManager with
-        member __.Authenticate username token salt openContext =
+        member __.Authenticate username token salt connection =
+            let usersTable = table<users>
+
             let userResults =
-                selectTask HydraReader.Read (Create openContext) {
-                    for u in users do
+                select {
+                    for u in usersTable do
                         where (u.username = username)
-                        select u
                 }
+                |> connection.SelectAsync<users>
 
             userResults.Result
             |> Seq.tryHead
@@ -104,9 +106,9 @@ type BasicAuthHandler
             && query.TryGetValue("s", &salt)
         with
         | true ->
-            let openContext = queryContext.CreateContext()
+            let conn = queryContext.Connection
 
-            match __.authManager.Authenticate username[0] token[0] salt[0] openContext with
+            match __.authManager.Authenticate username[0] token[0] salt[0] conn with
             | Some claims ->
                 let identity = new ClaimsIdentity(claims, __.Scheme.Name)
 

@@ -7,13 +7,16 @@ open Microsoft.AspNetCore.Http
 
 open SqlHydra.Query
 open FSharpMajor.Database
+open Dapper.FSharp.PostgreSQL
+open System.Data
+open Npgsql
 
 type IDatabaseService =
-    abstract member CreateContext: unit -> (unit -> QueryContext)
+    abstract member Connection: IDbConnection
 
 type DatabaseService() =
     interface IDatabaseService with
-        member __.CreateContext() = openContext
+        member _.Connection = npgsqlSource.OpenConnection()
 
 [<Extension>]
 type HttpContextExtensions() =

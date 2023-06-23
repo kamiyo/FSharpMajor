@@ -2,11 +2,11 @@
   "profiles": {
     "FSharpMajor": {
       "commandName": "Project",
-      "launchBrowser": true,
+      "launchBrowser": false,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "https://localhost:6670;http://localhost:6671"
+      "applicationUrl": "https://localhost:8080;http://localhost:8080"
     },
     "Docker": {
       "commandName": "Docker",

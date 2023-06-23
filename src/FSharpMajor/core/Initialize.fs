@@ -1,15 +1,18 @@
 module FSharpMajor.Initialize
 
+open System.IO
+
 open FSharpMajor.Database
 open FSharpMajor.DatabaseTypes
 open FSharpMajor.DatabaseTypes.``public``
+open FSharpMajor.DatabaseTypes.Defaults
+open FSharpMajor.InsertTasks
 
+open Dapper.FSharp.PostgreSQL
 open FsConfig
-open SqlHydra.Query.SelectBuilders
-open SqlHydra.Query.InsertBuilders
-open DatabaseTypes.Defaults
 open dotenv.net
 open Encryption
+open Npgsql
 
 type Config =
     { AdminUser: string
@@ -17,9 +20,64 @@ type Config =
 
 DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
 
-let makeAdminIfNotExists () =
+let makeOrUpdateAdmin () =
     let config =
         match EnvConfig.Get<Config>() with
+        | Ok config -> config
+        | Error error ->
+            match error with
+            | NotFound envVarName -> failwithf $"Environment variable {envVarName} not found"
+            | BadValue(envVarName, value) -> failwithf $"Environment variable {envVarName} has invalid value {value}"
+            | NotSupported msg -> failwith msg
+
+    use conn = npgsqlSource.OpenConnection()
+
+    let usersTable = table<users>
+
+    let exists =
+        select {
+            for u in usersTable do
+                where (u.username = config.AdminUser)
+        }
+        |> conn.SelectAsync<users>
+
+
+    match exists.Result |> Seq.tryHead with
+    | None ->
+        let encryptedPass = config.AdminPassword |> encryptPassword
+
+        insert {
+            for u in usersTable do
+
+                value
+                    { defaultUser with
+                        username = config.AdminUser
+                        password = encryptedPass
+                        admin_role = true }
+
+                excludeColumn u.id
+        }
+        |> conn.InsertAsync
+        |> ignore
+    | Some user ->
+        let storedPass = user.password |> decryptPassword
+
+        if storedPass <> config.AdminPassword then
+            let newPass = config.AdminPassword |> encryptPassword
+            // Update with new password
+            update {
+                for u in usersTable do
+                    set { user with password = newPass }
+                    where (u.id = user.id)
+            }
+            |> conn.UpdateAsync
+            |> ignore
+
+type LibraryRoot = { LibraryRoots: string }
+
+let makeLibraryRoots () =
+    let config =
+        match EnvConfig.Get<LibraryRoot>() with
         | Ok config -> config
         | Error error ->
             match error with
@@ -27,31 +85,39 @@ let makeAdminIfNotExists () =
             | BadValue(envVarName, value) -> failwithf "Environment variable %s has invalid value %s" envVarName value
             | NotSupported msg -> failwith msg
 
-    let exists =
-        selectTask HydraReader.Read (Create openContext) {
-            for u in users do
-                where (u.username = config.AdminUser)
-                count
+    let roots = config.LibraryRoots.Split ',' |> Array.map (fun s -> s.Trim())
+
+    use conn = npgsqlSource.OpenConnection()
+    // For now, just insert the library roots without updating if changed or deleted
+    let existsTask =
+        select {
+            for _roots in libraryRootsTable do
+                selectAll
         }
+        |> conn.SelectAsync<library_roots>
 
-    let encryptedPass = config.AdminPassword |> encryptPassword
+    let exists = existsTask.Result |> Seq.map (fun r -> r.path) |> Set.ofSeq
 
-    let created =
-        match exists.Result with
-        | 0 ->
-            let inserted =
-                insertTask (Create openContext) {
-                    for u in users do
-                        entity
-                            { defaultUser with
-                                users.username = config.AdminUser
-                                users.password = encryptedPass
-                                users.admin_role = true }
+    let needed =
+        roots
+        |> Set.ofArray
+        |> (fun s -> Set.difference s exists)
+        |> Set.toList
+        |> List.map (fun s ->
+            { id = System.Guid.Empty
+              name = s |> Path.GetDirectoryName |> Path.GetFileName
+              path = s
+              scan_completed = None })
 
-                        getId u.id
-                }
+    match needed with
+    | [] -> 0
+    | _ ->
+        let insertTask =
+            insert {
+                for r in libraryRootsTable do
+                    values needed
+                    excludeColumn r.id
+            }
+            |> conn.InsertAsync<library_roots>
 
-            Some inserted.Result
-        | _ -> None
-
-    created
+        insertTask.Result
