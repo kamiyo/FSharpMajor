@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.2.1"></a>
+## [1.2.1](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.2.1) (2023-6-25)
+
+### Bug Fixes
+
+* **core:** Continuing debugging scanning. Figured out how to use Dapper and postgresql unnest to check composite key in list ([db1e311](https://www.github.com/kamiyo/FSharpMajor/commit/db1e31172ad414d2e7658ac6297f47a573f751ba))
+
 <a name="1.2.0"></a>
 ## [1.2.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.2.0) (2023-6-23)
 
