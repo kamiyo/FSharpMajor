@@ -1,7 +1,7 @@
 -- migrate:up
 CREATE TABLE artists_users (
-    artist_id       uuid REFERENCES artists,
-    user_id         uuid REFERENCES users,
+    artist_id       uuid REFERENCES artists ON DELETE CASCADE,
+    user_id         uuid REFERENCES users ON DELETE CASCADE,
     starred         timestamp,
     last_played     timestamp,
     rating          integer CHECK (rating >= 1 AND rating <= 5),
@@ -10,8 +10,8 @@ CREATE TABLE artists_users (
 );
 
 CREATE TABLE albums_users (
-    album_id        uuid REFERENCES albums,
-    user_id         uuid REFERENCES users,
+    album_id        uuid REFERENCES albums ON DELETE CASCADE,
+    user_id         uuid REFERENCES users ON DELETE CASCADE,
     starred         timestamp,
     last_played     timestamp,
     play_count      bigint,
@@ -21,36 +21,36 @@ CREATE TABLE albums_users (
 );
 
 CREATE TABLE artists_albums (
-    artist_id       uuid REFERENCES artists,
-    album_id        uuid REFERENCES albums,
+    artist_id       uuid REFERENCES artists ON DELETE CASCADE,
+    album_id        uuid REFERENCES albums ON DELETE CASCADE,
     PRIMARY KEY (artist_id, album_id),
     UNIQUE (artist_id, album_id)
 );
 
 CREATE TABLE albums_genres (
-    genre_id        uuid REFERENCES genres,
-    album_id        uuid REFERENCES albums,
+    genre_id        uuid REFERENCES genres ON DELETE CASCADE,
+    album_id        uuid REFERENCES albums ON DELETE CASCADE,
     PRIMARY KEY (album_id, genre_id),
     UNIQUE (album_id, genre_id)
 );
 
 CREATE TABLE items_artists (
-    item_id         uuid REFERENCES directory_items,
-    artist_id       uuid REFERENCES artists,
+    item_id         uuid REFERENCES directory_items ON DELETE CASCADE,
+    artist_id       uuid REFERENCES artists ON DELETE CASCADE,
     PRIMARY KEY (item_id, artist_id),
     UNIQUE (item_id, artist_id)
 );
 
 CREATE TABLE items_albums (
-    item_id         uuid REFERENCES directory_items,
-    album_id        uuid REFERENCES albums,
+    item_id         uuid REFERENCES directory_items ON DELETE CASCADE,
+    album_id        uuid REFERENCES albums ON DELETE CASCADE,
     PRIMARY KEY (item_id, album_id),
     UNIQUE (item_id, album_id)
 );
 
 CREATE TABLE items_users (
-    item_id         uuid REFERENCES directory_items,
-    user_id         uuid REFERENCES users,
+    item_id         uuid REFERENCES directory_items ON DELETE CASCADE,
+    user_id         uuid REFERENCES users ON DELETE CASCADE,
     starred         timestamp,
     last_played     timestamp,
     bookmark_pos    bigint,
@@ -61,8 +61,8 @@ CREATE TABLE items_users (
 );
 
 CREATE TABLE albums_cover_art (
-    album_id        uuid REFERENCES albums,
-    cover_art_id    uuid REFERENCES cover_art,
+    album_id        uuid REFERENCES albums ON DELETE CASCADE,
+    cover_art_id    uuid REFERENCES cover_art ON DELETE CASCADE,
     PRIMARY KEY (album_id, cover_art_id),
     UNIQUE (album_id, cover_art_id)
 );

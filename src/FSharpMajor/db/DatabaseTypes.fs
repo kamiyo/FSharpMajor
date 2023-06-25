@@ -59,6 +59,7 @@ module ``public`` =
     type directory_items =
         { id: System.Guid
           parent_id: Option<System.Guid>
+          music_folder_id: System.Guid
           name: Option<string>
           is_dir: bool
           track: Option<int>
@@ -68,7 +69,7 @@ module ``public`` =
           suffix: Option<string>
           duration: Option<int>
           bit_rate: Option<int>
-          path: Option<string>
+          path: string
           is_video: Option<bool>
           disc_number: Option<int>
           created: System.DateTime

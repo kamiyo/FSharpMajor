@@ -12,7 +12,6 @@ open Dapper.FSharp.PostgreSQL
 open FsConfig
 open dotenv.net
 open Encryption
-open Npgsql
 
 type Config =
     { AdminUser: string

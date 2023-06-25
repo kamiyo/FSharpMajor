@@ -22,8 +22,8 @@ let config =
     | Ok config -> config
     | Error error ->
         match error with
-        | NotFound envVarName -> failwithf "Environment variable %s not found" envVarName
-        | BadValue(envVarName, value) -> failwithf "Environment variable %s has invalid value %s" envVarName value
+        | NotFound envVarName -> failwithf $"Environment variable %s{envVarName} not found"
+        | BadValue(envVarName, value) -> failwithf $"Environment variable %s{envVarName} has invalid value %s{value}"
         | NotSupported msg -> failwith msg
 
 let connString =
@@ -38,4 +38,5 @@ let connString =
 
 let private dataSourceBuilder = new NpgsqlDataSourceBuilder(connString)
 dataSourceBuilder.UseLoggerFactory logger |> ignore
+dataSourceBuilder.EnableParameterLogging() |> ignore
 let npgsqlSource = dataSourceBuilder.Build()

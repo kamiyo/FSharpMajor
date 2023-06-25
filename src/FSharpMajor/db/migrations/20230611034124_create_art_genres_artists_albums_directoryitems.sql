@@ -27,7 +27,8 @@ CREATE TABLE albums (
 
 CREATE TABLE directory_items (
     id                  uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    parent_id           uuid REFERENCES directory_items,
+    parent_id           uuid REFERENCES directory_items ON DELETE CASCADE,
+    music_folder_id     uuid REFERENCES library_roots ON DELETE CASCADE, 
     name                varchar,
     is_dir              boolean NOT NULL,
     track               integer,
@@ -37,7 +38,7 @@ CREATE TABLE directory_items (
     suffix              varchar,
     duration            integer,
     bit_rate            integer,
-    path                varchar,
+    path                varchar NOT NULL,
     is_video            boolean,
     disc_number         integer,
     created             timestamp NOT NULL,
@@ -51,8 +52,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS albums_name ON albums(name);
 CREATE UNIQUE INDEX IF NOT EXISTS genres_name ON genres(name);
 
 CREATE UNIQUE INDEX IF NOT EXISTS directory_items_path ON directory_items(path);
-CREATE UNIQUE INDEX IF NOT EXISTS directory_items_parent ON directory_items(parent_id);
-CREATE UNIQUE INDEX IF NOT EXISTS directory_name ON directory_items(name);
+CREATE INDEX IF NOT EXISTS directory_items_parent ON directory_items(parent_id);
+CREATE INDEX IF NOT EXISTS directory_name ON directory_items(name);
 CREATE INDEX IF NOT EXISTS items_created ON directory_items(created);
 
 

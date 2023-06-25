@@ -33,6 +33,7 @@
     <PackageReference Include="FsConfig" Version="3.1.0" />
     <PackageReference Include="FSharp.Data" Version="6.2.0" />
     <PackageReference Include="FSharp.Data.LiteralProviders" Version="1.0.3" />
+    <PackageReference Include="FSharp.Interop.Dynamic" Version="5.0.1.268" />
     <PackageReference Include="FsPickler" Version="5.3.2" />
     <PackageReference Include="Giraffe" Version="6.0.0" />
     <PackageReference Include="Giraffe.SerilogExtensions" Version="2.2.0" />
