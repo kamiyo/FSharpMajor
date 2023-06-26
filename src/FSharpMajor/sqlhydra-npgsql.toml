@@ -1,7 +1,7 @@
 [general]
 connection = "Host=localhost;Database=fsharpmajor;Username=fsharpmajor;Password=fsharpmajor;Port=5432"
-output = "db/DatabaseTypes.fs"
-namespace = "FSharpMajor.DatabaseTypes"
+output = "db/DatabaseTypesTemplate.fs"
+namespace = "FSharpMajor.DatabaseTypesTemplate"
 cli_mutable = true
 [sqlhydra_query_integration]
 provider_db_type_attributes = false

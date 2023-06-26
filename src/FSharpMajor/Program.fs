@@ -25,6 +25,8 @@ open Scanner
 
 DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
 
+System.Console.OutputEncoding <- System.Text.Encoding.Unicode
+
 let exitCode = 0
 
 let configureApp (app: IApplicationBuilder) =

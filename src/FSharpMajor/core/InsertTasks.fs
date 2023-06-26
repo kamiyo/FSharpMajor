@@ -9,10 +9,7 @@ open FSharp.Interop.Dynamic
 open Dapper.FSharp.PostgreSQL
 open Dapper
 
-open FSharpMajor.DatabaseTypes.``public``
-open FSharpMajor.DatabaseTypes.``public``
-open FSharpMajor.DatabaseTypes.``public``
-open FSharpMajor.DatabaseTypes.``public``
+open FSharpMajor.DatabaseTypes
 open FSharpMajor.FsLibLog
 open FSharpMajor.Database
 
@@ -28,82 +25,34 @@ let itemsAlbumsTable = table<items_albums>
 let artistsAlbumsTable = table<artists_albums>
 let albumsGenresTable = table<albums_genres>
 
-[<CustomComparison; CustomEquality>]
-type ImageInfo =
-    { Guid: Guid
-      MimeType: string
-      Path: string option
-      Data: byte array option
-      Hash: string }
-
-    override __.Equals(obj: obj) =
-        match obj with
-        | :? ImageInfo as other -> __.Hash.Equals other.Hash
-        | _ -> invalidArg (nameof obj) "Object is not an ImageInfo Record"
-
-    override __.GetHashCode() =
-        Int32.Parse(__.Hash, NumberStyles.HexNumber)
-
-    interface IComparable with
-        member __.CompareTo(obj: obj) =
-            match obj with
-            | null -> 1
-            | :? ImageInfo as other -> __.Hash.CompareTo other.Hash
-            | _ -> invalidArg (nameof obj) "Object is not an ImageInfo Record"
-
-[<CustomComparison; CustomEquality>]
-type ArtistInfo =
-    { Guid: Guid
-      Name: string
-      ImageUrl: string option }
-
-    override __.Equals(obj: obj) =
-        match obj with
-        | :? ArtistInfo as other -> __.Name.Equals other.Name
-        | _ -> invalidArg (nameof obj) "Object is not an ImageInfo Record"
-
-    override __.GetHashCode() = __.Name.GetHashCode()
-
-    interface IComparable with
-        member __.CompareTo(obj: obj) =
-            match obj with
-            | null -> 1
-            | :? ArtistInfo as other -> __.Name.CompareTo other.Name
-            | _ -> invalidArg (nameof obj) "Object is not an ImageInfo Record"
-
-type AlbumInfo = { Name: string; Year: int option }
-
-let albumsEqual (ai: AlbumInfo) (a: albums) =
-    ai.Name.Equals a.name && ai.Year = a.year
-
-
-let insertArtists (artistInfos: ArtistInfo list) =
+let insertArtists (artistList: artists list) =
     task {
-        match artistInfos with
+        match artistList with
         | [] -> return Seq.empty
         | [ single ] ->
             use! conn = npgsqlSource.OpenConnectionAsync()
+
             let! existing =
                 select {
                     for a in artistsTable do
-                        where (a.name = single.Name)
+                        where (a.name = single.name)
                 }
                 |> conn.SelectAsync<artists>
+
             match existing |> Seq.tryHead with
             | None ->
                 return!
                     insert {
-                        into artistsTable
-                        value { id = Guid.NewGuid()
-                                name = single.Name
-                                image_url = single.ImageUrl }
+                        for a in artistsTable do
+                            value single
+                            excludeColumn a.id
                     }
                     |> conn.InsertOutputAsync<artists, artists>
-            | Some _ ->
-                return existing
+            | Some _ -> return existing
         | _ ->
             use! conn = npgsqlSource.OpenConnectionAsync()
-            let artistNames = (artistInfos |> List.map (fun a -> a.Name))
+            let artistNames = (artistList |> List.map (fun a -> a.name))
+
             let! existingArtists =
                 select {
                     for artist in artistsTable do
@@ -111,15 +60,13 @@ let insertArtists (artistInfos: ArtistInfo list) =
                 }
                 |> conn.SelectAsync<artists>
 
-            let foundNames = existingArtists |> List.ofSeq |> List.map (fun a -> a.name)
+            let foundArtists = existingArtists |> Set.ofSeq
 
             let artistsToInsert =
-                artistInfos
-                |> List.filter (fun a -> foundNames |> List.contains a.Name |> not)
-                |> List.map (fun a ->
-                    { id = a.Guid
-                      name = a.Name
-                      image_url = a.ImageUrl }) // Use external services for image url
+                artistList
+                |> Set.ofList
+                |> (fun a -> Set.difference a foundArtists)
+                |> Set.toList
 
             match artistsToInsert with
             | [] -> return existingArtists
@@ -133,57 +80,52 @@ let insertArtists (artistInfos: ArtistInfo list) =
                     |> conn.InsertOutputAsync<artists, artists>
 
                 return Seq.append inserted existingArtists
-            }
+    }
 
 
-let insertAlbums (albums: AlbumInfo list) =
+let insertAlbums (albumsList: albums list) =
     task {
-        match albums with
+        match albumsList with
         | [] -> return Seq.empty
         | [ single ] ->
             use! conn = npgsqlSource.OpenConnectionAsync()
+
             let! existing =
                 select {
                     for alb in albumsTable do
-                        where (alb.name = single.Name)
+                        where (alb.name = single.name)
                 }
                 |> conn.SelectAsync<albums>
+
             match existing |> Seq.tryHead with
             | None ->
                 return!
                     insert {
-                        into albumsTable
-                        value { id = Guid.NewGuid()
-                                name = single.Name
-                                year = single.Year }
+                        for a in albumsTable do
+                            value single
+                            excludeColumn a.id
                     }
                     |> conn.InsertOutputAsync<albums, albums>
-            | Some _ ->
-                return existing
+            | Some _ -> return existing
         | _ ->
             use! conn = npgsqlSource.OpenConnectionAsync()
 
-            let namesToCheck = albums |> List.map (fun a -> a.Name)
+            let namesToCheck = albumsList |> List.map (fun a -> a.name)
 
             let! existingAlbums =
                 select {
                     for alb in albumsTable do
-                        where (isIn alb.name namesToCheck) 
+                        where (isIn alb.name namesToCheck)
                 }
                 |> conn.SelectAsync<albums>
 
-            let foundAlbumNames =
-                existingAlbums
-                |> List.ofSeq
-                |> List.map (fun a -> { Name = a.name; Year = a.year })
+            let foundAlbums = existingAlbums |> Set.ofSeq
 
             let albumsToInsert =
-                albums
-                |> List.filter (fun a -> foundAlbumNames |> List.contains a |> not)
-                |> List.map (fun a ->
-                    { id = Guid.Empty
-                      name = a.Name
-                      year = a.Year })
+                albumsList
+                |> Set.ofList
+                |> (fun a -> Set.difference a foundAlbums)
+                |> Set.toList
 
             match albumsToInsert with
             | [] -> return existingAlbums
@@ -199,37 +141,34 @@ let insertAlbums (albums: AlbumInfo list) =
                 return Seq.append inserted existingAlbums
     }
 
-let insertImages (images: ImageInfo list) =
+let insertImages (images: cover_art list) =
     task {
         match images with
         | [] -> return Seq.empty
         | [ single ] ->
             use! conn = npgsqlSource.OpenConnectionAsync()
+
             let! existing =
                 select {
                     for art in coverArtTable do
-                        where (art.hash = single.Hash)
+                        where (art.hash = single.hash)
                 }
                 |> conn.SelectAsync<cover_art>
+
             match existing |> Seq.tryHead with
             | None ->
                 return!
                     insert {
-                        into coverArtTable
-                        value { id = Guid.NewGuid()
-                                mime = single.MimeType
-                                image = single.Data
-                                path = single.Path
-                                hash = single.Hash
-                                created = DateTime.UtcNow }
+                        for c in coverArtTable do
+                            value single
+                            excludeColumn c.id
                     }
                     |> conn.InsertOutputAsync<cover_art, cover_art>
-            | Some _ ->
-                return existing
+            | Some _ -> return existing
         | _ ->
             use! conn = npgsqlSource.OpenConnectionAsync()
 
-            let hashesToCheck = images |> List.map (fun a -> a.Hash)
+            let hashesToCheck = images |> List.map (fun a -> a.hash)
 
             let! existingImages =
                 select {
@@ -238,18 +177,10 @@ let insertImages (images: ImageInfo list) =
                 }
                 |> conn.SelectAsync<cover_art>
 
-            let foundImageHashes = existingImages |> List.ofSeq |> List.map (fun a -> a.hash)
+            let foundImages = existingImages |> Set.ofSeq
 
             let imagesToInsert =
-                images
-                |> List.filter (fun a -> foundImageHashes |> List.contains a.Hash |> not)
-                |> List.map (fun a ->
-                    { id = Guid.Empty
-                      mime = a.MimeType
-                      image = a.Data
-                      path = a.Path
-                      hash = a.Hash
-                      created = DateTime.UtcNow })
+                images |> Set.ofList |> (fun i -> Set.difference i foundImages) |> Set.toList
 
             match imagesToInsert with
             | [] -> return existingImages
@@ -263,50 +194,48 @@ let insertImages (images: ImageInfo list) =
                     |> conn.InsertOutputAsync<cover_art, cover_art>
 
                 return Seq.append inserted existingImages
-
     }
 
-let insertGenres (genres: string list) =
+let insertGenres (genresList: genres list) =
     task {
-        match genres with
+        match genresList with
         | [] -> return Seq.empty
         | [ single ] ->
             use! conn = npgsqlSource.OpenConnectionAsync()
+
             let! existing =
                 select {
                     for g in genresTable do
-                        where (g.name = single)
+                        where (g.name = single.name)
                 }
                 |> conn.SelectAsync<genres>
-            
+
             match existing |> Seq.tryHead with
             | None ->
                 return!
                     insert {
-                        into genresTable
-                        value { id = Guid.NewGuid(); name = single }
+                        for g in genresTable do
+                            value single
+                            excludeColumn g.id
                     }
                     |> conn.InsertOutputAsync<genres, genres>
-            | Some _ ->
-                return existing
+            | Some _ -> return existing
         | _ ->
             use! conn = npgsqlSource.OpenConnectionAsync()
+
+            let genreNames = genresList |> List.map (fun g -> g.name)
 
             let! existingGenres =
                 select {
                     for g in genresTable do
-                        where (isIn g.name genres)
+                        where (isIn g.name genreNames)
                 }
                 |> conn.SelectAsync<genres>
 
-            let found = existingGenres |> Seq.map (fun g -> g.name) |> Set.ofSeq
+            let found = existingGenres |> Set.ofSeq
 
             let needed =
-                genres
-                |> Set.ofList
-                |> (fun s -> Set.difference s found)
-                |> Set.toList
-                |> List.map (fun g -> { id = Guid.Empty; name = g })
+                genresList |> Set.ofList |> (fun s -> Set.difference s found) |> Set.toList
 
             match needed with
             | [] -> return existingGenres
@@ -328,13 +257,14 @@ let insertArtistsAlbums (artistsAlbums: artists_albums list) =
         | [] -> return Seq.empty
         | [ single ] ->
             use! conn = npgsqlSource.OpenConnectionAsync()
+
             let! existing =
                 select {
                     for aa in artistsAlbumsTable do
                         where (aa.artist_id = single.artist_id && aa.album_id = single.album_id)
                 }
                 |> conn.SelectAsync<artists_albums>
-                
+
             match existing |> Seq.tryHead with
             | None ->
                 return!
@@ -343,8 +273,7 @@ let insertArtistsAlbums (artistsAlbums: artists_albums list) =
                         value single
                     }
                     |> conn.InsertOutputAsync<artists_albums, artists_albums>
-            | Some _ ->
-                return existing
+            | Some _ -> return existing
         | _ ->
             use! conn = npgsqlSource.OpenConnectionAsync()
             // FSharp.Dapper does not allow where with composite keys, so use Dapper
@@ -363,7 +292,12 @@ let insertArtistsAlbums (artistsAlbums: artists_albums list) =
                 |> Array.ofList
                 |> Array.unzip
 
-            let existingResult = conn.Query<artists_albums>(query, {| ArtistIds = artistIds; AlbumIds = albumIds |})
+            let existingResult =
+                conn.Query<artists_albums>(
+                    query,
+                    struct {| ArtistIds = artistIds
+                              AlbumIds = albumIds |}
+                )
 
             let found = existingResult |> Set.ofSeq
 
@@ -389,13 +323,14 @@ let insertItemsArtists (itemsArtists: items_artists list) =
         | [] -> return Seq.empty
         | [ single ] ->
             use! conn = npgsqlSource.OpenConnectionAsync()
+
             let! existing =
                 select {
                     for aa in itemsArtistsTable do
                         where (aa.item_id = single.item_id && aa.artist_id = single.artist_id)
                 }
                 |> conn.SelectAsync<items_artists>
-                
+
             match existing |> Seq.tryHead with
             | None ->
                 return!
@@ -404,8 +339,7 @@ let insertItemsArtists (itemsArtists: items_artists list) =
                         value single
                     }
                     |> conn.InsertOutputAsync<items_artists, items_artists>
-            | Some _ ->
-                return existing
+            | Some _ -> return existing
         | _ ->
             use! conn = npgsqlSource.OpenConnectionAsync()
             // FSharp.Dapper does not allow where with composite keys, so use Dapper
@@ -424,7 +358,12 @@ let insertItemsArtists (itemsArtists: items_artists list) =
                 |> Array.ofList
                 |> Array.unzip
 
-            let existingResult = conn.Query<items_artists>(query, {| ItemIds = itemIds; ArtistIds = artistIds |})
+            let existingResult =
+                conn.Query<items_artists>(
+                    query,
+                    struct {| ItemIds = itemIds
+                              ArtistIds = artistIds |}
+                )
 
             let found = existingResult |> Set.ofSeq
 
@@ -443,19 +382,21 @@ let insertItemsArtists (itemsArtists: items_artists list) =
 
                 return Seq.append inserted existingResult
     }
+
 let insertAlbumsGenres (albumsGenres: albums_genres list) =
     task {
         match albumsGenres with
         | [] -> return Seq.empty
         | [ single ] ->
             use! conn = npgsqlSource.OpenConnectionAsync()
+
             let! existing =
                 select {
                     for ag in albumsGenresTable do
                         where (ag.album_id = single.album_id && ag.genre_id = single.genre_id)
                 }
                 |> conn.SelectAsync<albums_genres>
-                
+
             match existing |> Seq.tryHead with
             | None ->
                 return!
@@ -464,8 +405,7 @@ let insertAlbumsGenres (albumsGenres: albums_genres list) =
                         value single
                     }
                     |> conn.InsertOutputAsync<albums_genres, albums_genres>
-            | Some _ ->
-                return existing
+            | Some _ -> return existing
         | _ ->
             use! conn = npgsqlSource.OpenConnectionAsync()
             // FSharp.Dapper does not allow where with composite keys, so use Dapper
@@ -484,7 +424,12 @@ let insertAlbumsGenres (albumsGenres: albums_genres list) =
                 |> Array.ofList
                 |> Array.unzip
 
-            let existingResult = conn.Query<albums_genres>(query, {| AlbumIds = albumIds; GenreIds = genreIds |})
+            let existingResult =
+                conn.Query<albums_genres>(
+                    query,
+                    struct {| AlbumIds = albumIds
+                              GenreIds = genreIds |}
+                )
 
             let found = existingResult |> Set.ofSeq
 
@@ -510,13 +455,14 @@ let insertAlbumsCoverArt (albumsCoverArt: albums_cover_art list) =
         | [] -> return Seq.empty
         | [ single ] ->
             use! conn = npgsqlSource.OpenConnectionAsync()
+
             let! existing =
                 select {
                     for ac in albumsCoverArtTable do
                         where (ac.album_id = single.album_id && ac.cover_art_id = single.cover_art_id)
                 }
                 |> conn.SelectAsync<albums_cover_art>
-                
+
             match existing |> Seq.tryHead with
             | None ->
                 return!
@@ -525,8 +471,7 @@ let insertAlbumsCoverArt (albumsCoverArt: albums_cover_art list) =
                         value single
                     }
                     |> conn.InsertOutputAsync<albums_cover_art, albums_cover_art>
-            | Some _ ->
-                return existing
+            | Some _ -> return existing
         | _ ->
             use! conn = npgsqlSource.OpenConnectionAsync()
             // FSharp.Dapper does not allow where with composite keys, so use Dapper
@@ -545,7 +490,12 @@ let insertAlbumsCoverArt (albumsCoverArt: albums_cover_art list) =
                 |> Array.ofList
                 |> Array.unzip
 
-            let existingResult = conn.Query<albums_cover_art>(query, {| AlbumIds = albumIds; CoverArtIds = coverArtIds |})
+            let existingResult =
+                conn.Query<albums_cover_art>(
+                    query,
+                    struct {| AlbumIds = albumIds
+                              CoverArtIds = coverArtIds |}
+                )
 
             let found = existingResult |> Set.ofSeq
 
@@ -571,13 +521,14 @@ let insertItemsAlbums (itemsAlbums: items_albums list) =
         | [] -> return Seq.empty
         | [ single ] ->
             use! conn = npgsqlSource.OpenConnectionAsync()
+
             let! existing =
                 select {
                     for aa in itemsAlbumsTable do
                         where (aa.item_id = single.item_id && aa.album_id = single.album_id)
                 }
                 |> conn.SelectAsync<items_albums>
-                
+
             match existing |> Seq.tryHead with
             | None ->
                 return!
@@ -586,8 +537,7 @@ let insertItemsAlbums (itemsAlbums: items_albums list) =
                         value single
                     }
                     |> conn.InsertOutputAsync<items_albums, items_albums>
-            | Some _ ->
-                return existing
+            | Some _ -> return existing
         | _ ->
             use! conn = npgsqlSource.OpenConnectionAsync()
             // FSharp.Dapper does not allow where with composite keys, so use Dapper
@@ -606,7 +556,12 @@ let insertItemsAlbums (itemsAlbums: items_albums list) =
                 |> Array.ofList
                 |> Array.unzip
 
-            let existingResult = conn.Query<items_albums>(query, {| ItemIds = itemIds; AlbumIds = albumIds |})
+            let existingResult =
+                conn.Query<items_albums>(
+                    query,
+                    struct {| ItemIds = itemIds
+                              AlbumIds = albumIds |}
+                )
 
             let found = existingResult |> Set.ofSeq
 
@@ -624,29 +579,34 @@ let insertItemsAlbums (itemsAlbums: items_albums list) =
                     |> conn.InsertOutputAsync<items_albums, items_albums>
 
                 return Seq.append inserted existingResult
-    } 
+    }
 
-let rec updateItemsLoop (updateList: directory_items list) (updated: directory_items list) (conn: Npgsql.NpgsqlConnection) =
+let rec updateItemsLoop
+    (updateList: directory_items list)
+    (updated: directory_items list)
+    (conn: Npgsql.NpgsqlConnection)
+    =
     task {
         match updateList with
         | [] -> return updated
-        | curr::rest ->
+        | curr :: rest ->
             let! result =
                 update {
                     for d in directoryItemsTable do
                         set curr
-                        where (d.id = curr.id)
+                        where (d.path = curr.path)
                         excludeColumn d.id
                 }
                 |> conn.UpdateOutputAsync<directory_items, directory_items>
-            let newUpdated = (result |> Seq.head)::updated
+
+            let newUpdated = (result |> Seq.head) :: updated
             return! updateItemsLoop rest newUpdated conn
     }
 
 let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
     task {
         use! conn = npgsqlSource.OpenConnectionAsync()
-        let logger = LogProvider.getLoggerByFunc()
+        let logger = LogProvider.getLoggerByFunc ()
 
         match directoryItems with
         | [] -> return Seq.empty
@@ -660,7 +620,8 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
 
             match exists |> Seq.tryHead with
             | None ->
-                logger.info(Log.setMessage $"%A{directoryItem.path} to be inserted")
+                logger.info (Log.setMessage $"%A{directoryItem.path} to be inserted")
+
                 return!
                     insert {
                         into directoryItemsTable
@@ -668,7 +629,8 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
                     }
                     |> conn.InsertOutputAsync<directory_items, directory_items>
             | Some _ ->
-                logger.info(Log.setMessage $"%A{directoryItem.path} to be updated")
+                logger.info (Log.setMessage $"%A{directoryItem.path} to be updated")
+
                 return!
                     update {
                         for di in directoryItemsTable do
@@ -678,9 +640,7 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
                     }
                     |> conn.UpdateOutputAsync<directory_items, directory_items>
         | _ ->
-            let paths =
-                directoryItems
-                |> List.map (fun di -> di.path)
+            let paths = directoryItems |> List.map (fun di -> di.path)
 
             let! exists =
                 select {
@@ -689,8 +649,7 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
                 }
                 |> conn.SelectAsync<directory_items>
 
-            let existingPaths =
-                exists |> Seq.map (fun di -> di.path) |> List.ofSeq
+            let existingPaths = exists |> Seq.map (fun di -> di.path) |> List.ofSeq
 
             let toUpdate, toInsert =
                 directoryItems
@@ -701,18 +660,20 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
                 | [] -> Task.FromResult Seq.empty
                 | _ ->
                     insert {
-                        into directoryItemsTable
-                        values toInsert
+                        for di in directoryItemsTable do
+                            values toInsert
+                            excludeColumn di.id
                     }
                     |> conn.InsertOutputAsync<directory_items, directory_items>
-                
+
             let! updated =
                 match toUpdate with
                 | [] -> Task.FromResult Seq.empty
-                | _ -> task {
-                    let! result = updateItemsLoop toUpdate [] conn
-                    return result |> Seq.ofList
-                }              
-                    
+                | _ ->
+                    task {
+                        let! result = updateItemsLoop toUpdate [] conn
+                        return result |> Seq.ofList
+                    }
+
             return Seq.append inserted updated
     }

@@ -1,10 +1,12 @@
 module FSharpMajor.Scanner
 
+#nowarn "3391"
+
 open System
 open System.IO
 open System.Security.Cryptography
 open System.Linq
-open FSharpMajor.DatabaseTypes.``public``
+open FSharpMajor.DatabaseTypes
 open Microsoft.AspNetCore.StaticFiles
 
 open Dapper.FSharp.PostgreSQL
@@ -26,18 +28,19 @@ let getMimeType (file: string) =
 let CaseInsensitiveEnumOption =
     EnumerationOptions(MatchCasing = MatchCasing.CaseInsensitive)
 
-let rec createSetOfImages (images: TagLib.IPicture list) (accum: ImageInfo Set) =
+let rec createSetOfImages (images: TagLib.IPicture list) (accum: cover_art Set) =
     match images with
     | [] -> accum
     | image :: rest ->
         let imageHash = md5.ComputeHash image.Data.Data |> Convert.ToHexString
 
         let toInsert =
-            { Guid = Guid.NewGuid()
-              MimeType = image.MimeType
-              Path = None
-              Data = Some image.Data.Data
-              Hash = imageHash }
+            { id = Guid.NewGuid()
+              mime = image.MimeType
+              path = None
+              image = Some image.Data.Data
+              hash = imageHash
+              created = DateTime.UtcNow }
 
         createSetOfImages rest (accum |> Set.add toInsert)
 
@@ -69,7 +72,7 @@ let createItem
         | null -> (Path.GetFileNameWithoutExtension fi.Name)
         | title -> title
 
-    { id = Guid.NewGuid()
+    { id = Unchecked.defaultof<Guid>
       parent_id = parentId
       music_folder_id = musicFolderId
       name = Some name
@@ -111,28 +114,28 @@ let createDirectory (currentDir: DirectoryInfo) (musicFolderId: Guid) (parentId:
       artist_from_path = false }
 
 type FileResult =
-    { Album: AlbumInfo
-      Images: ImageInfo list
-      Genres: string list
-      Artists: ArtistInfo list
+    { Album: albums
+      Images: cover_art list
+      Genres: genres list
+      Artists: artists list
       Item: directory_items
-      ItemAlbum: string * AlbumInfo
-      AlbumArtists: (AlbumInfo * ArtistInfo) list
-      ItemArtists: (string * ArtistInfo) list
-      AlbumCoverArt: (AlbumInfo * ImageInfo) list
-      AlbumGenres: (AlbumInfo * string) list }
+      ItemAlbum: string * albums
+      AlbumArtists: (albums * artists) list
+      ItemArtists: (string * artists) list
+      AlbumCoverArt: (albums * cover_art) list
+      AlbumGenres: (albums * genres) list }
 
 type ReducedResult =
-    { Albums: AlbumInfo Set
-      Images: ImageInfo Set
-      Genres: string Set
-      Artists: ArtistInfo Set
+    { Albums: albums Set
+      Images: cover_art Set
+      Genres: genres Set
+      Artists: artists Set
       Items: directory_items list
-      ItemsAlbums: (string * AlbumInfo) Set
-      AlbumsArtists: (AlbumInfo * ArtistInfo) Set
-      ItemsArtists: (string * ArtistInfo) Set
-      AlbumsCoverArt: (AlbumInfo * ImageInfo) Set
-      AlbumsGenres: (AlbumInfo * string) Set }
+      ItemsAlbums: (string * albums) Set
+      AlbumsArtists: (albums * artists) Set
+      ItemsArtists: (string * artists) Set
+      AlbumsCoverArt: (albums * cover_art) Set
+      AlbumsGenres: (albums * genres) Set }
 
     static member Default =
         { Albums = Set.empty
@@ -147,7 +150,7 @@ type ReducedResult =
           AlbumsGenres = Set.empty }
 
 type ScanResult =
-    | ImageResult of ImageInfo
+    | ImageResult of cover_art
     | FileResult of FileResult
     | NoResult
 
@@ -156,11 +159,12 @@ let scanImage (file: FileInfo) (mimeType: string) =
     let hash = md5.ComputeHash imageFile |> Convert.ToHexString
 
     let toInsert =
-        { Guid = Guid.NewGuid()
-          MimeType = mimeType
-          Data = None
-          Path = Some file.FullName
-          Hash = hash }
+        { id = Guid.NewGuid()
+          mime = mimeType
+          image = None
+          path = Some file.FullName
+          hash = hash
+          created = DateTime.UtcNow }
 
     ImageResult toInsert
 
@@ -209,7 +213,13 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
                 let genres =
                     match tags.Tag.Genres |> Array.map (fun g -> g.Split ';') with
                     | [||] -> List.empty
-                    | arrayArray -> arrayArray |> Array.reduce Array.append |> List.ofArray
+                    | arrayArray ->
+                        arrayArray
+                        |> Array.reduce Array.append
+                        |> List.ofArray
+                        |> List.map (fun g ->
+                            { genres.id = Unchecked.defaultof<Guid>
+                              name = g })
 
                 let artistTags, artistsFromPath =
                     match tags.Tag.Performers with
@@ -230,14 +240,17 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
                 let diInstance =
                     createItem fileInfo tags musicFolderId parentId albumFromPath artistsFromPath
 
-                let album = { Name = albumName; Year = albumYear }
+                let album =
+                    { id = Unchecked.defaultof<Guid>
+                      albums.name = albumName
+                      albums.year = albumYear }
 
                 let artists =
                     artistTags
                     |> List.map (fun a ->
-                        { Guid = Guid.Empty
-                          Name = a
-                          ImageUrl = None })
+                        { id = Unchecked.defaultof<Guid>
+                          name = a
+                          image_url = None })
                 // Time for relations
                 let albumArtists = [ for artist in artists -> (album, artist) ]
 
@@ -390,10 +403,10 @@ let rec traverseDirectories
                     let artistsAlbumsToInsert =
                         reduced.AlbumsArtists
                         |> Set.toList
-                        |> List.map (fun (albumInfo, artistInfo) ->
-                            let artist = artists |> Seq.find (fun a -> a.name = artistInfo.Name)
+                        |> List.map (fun (album, artist) ->
+                            let artist = artists |> Seq.find (fun a -> a.name = artist.name)
 
-                            let album = albums |> Seq.find (albumsEqual albumInfo)
+                            let album = albums |> Seq.find albums.Equals
 
                             { artist_id = artist.id
                               album_id = album.id })
@@ -408,8 +421,8 @@ let rec traverseDirectories
                     let itemsArtistsToInsert =
                         reduced.ItemsArtists
                         |> Set.toList
-                        |> List.map (fun (itemPath, artistInfo) ->
-                            let artist = artists |> Seq.find (fun a -> a.name = artistInfo.Name)
+                        |> List.map (fun (itemPath, artist) ->
+                            let artist = artists |> Seq.find (fun a -> a.name = artist.name)
                             let item = items |> Seq.find (fun a -> a.path = itemPath)
 
                             { artist_id = artist.id
@@ -421,9 +434,9 @@ let rec traverseDirectories
                     let albumsCoverArtToInsert =
                         reduced.AlbumsCoverArt
                         |> Set.toList
-                        |> List.map (fun (albumInfo, imageInfo) ->
-                            let album = albums |> Seq.find (albumsEqual albumInfo)
-                            let image = images |> Seq.find (fun i -> i.hash = imageInfo.Hash)
+                        |> List.map (fun (album, cover_art) ->
+                            let album = albums |> Seq.find album.Equals
+                            let image = images |> Seq.find (fun i -> i.hash = cover_art.hash)
 
                             { cover_art_id = image.id
                               album_id = album.id })
@@ -433,9 +446,9 @@ let rec traverseDirectories
                     let albumsGenresToInsert =
                         reduced.AlbumsGenres
                         |> Set.toList
-                        |> List.map (fun (albumInfo, genreString) ->
-                            let album = albums |> Seq.find (albumsEqual albumInfo)
-                            let genre = genres |> Seq.find (fun g -> g.name = genreString)
+                        |> List.map (fun (album, genre) ->
+                            let album = albums |> Seq.find album.Equals
+                            let genre = genres |> Seq.find genre.Equals
 
                             { album_id = album.id
                               genre_id = genre.id })
@@ -450,8 +463,8 @@ let rec traverseDirectories
                     let itemsAlbumsToInsert =
                         reduced.ItemsAlbums
                         |> Set.toList
-                        |> List.map (fun (itemPath, albumInfo) ->
-                            let album = albums |> Seq.find (albumsEqual albumInfo)
+                        |> List.map (fun (itemPath, album) ->
+                            let album = albums |> Seq.find album.Equals
                             let item = items |> Seq.find (fun a -> a.path = itemPath)
 
                             { item_id = item.id
@@ -489,7 +502,6 @@ let rec traverseDirectories
                     rest
             // Recurse
             traverseDirectories musicFolderId rootDirInfo newRest lastScannedTime
-
 
 let startTraverseDirectories () =
     task {
