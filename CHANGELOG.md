@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.3.0"></a>
+## [1.3.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.3.0) (2023-6-26)
+
+### Features
+
+* **core:** Extended DatabaseTypes.fs with comparison/equality operators for easy Set usage. ([190c2f0](https://www.github.com/kamiyo/FSharpMajor/commit/190c2f0d6c60090b91a4aac6a5bf4559dd186bb6))
+
 <a name="1.2.1"></a>
 ## [1.2.1](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.2.1) (2023-6-25)
 
