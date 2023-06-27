@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.4.0"></a>
+## [1.4.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.4.0) (2023-6-26)
+
+### Features
+
+* **core:** Scanning works now, presumably. ([de15577](https://www.github.com/kamiyo/FSharpMajor/commit/de155777fabc909948e2a085e46594d2be9207aa))
+
 <a name="1.3.0"></a>
 ## [1.3.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.3.0) (2023-6-26)
 
