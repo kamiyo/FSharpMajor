@@ -1,10 +1,12 @@
-module FSharpMajor.Program
+namespace FSharpMajor
 
 open System
 
 open Serilog
 
+open FSharpMajor.Utils.Logging
 open FSharpMajor.XmlSerializer
+open FSharpMajor.FsLibLog
 
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
@@ -23,53 +25,55 @@ open Authorization
 open DatabaseService
 open Scanner
 
-DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
-
-System.Console.OutputEncoding <- System.Text.Encoding.Unicode
-
-let exitCode = 0
-
-let configureApp (app: IApplicationBuilder) =
-    app.UseAuthentication() |> ignore
-    app.UseGiraffe(SerilogAdapter.Enable rootRouter)
-
-let configureServices (services: IServiceCollection) =
-    services.AddGiraffe() |> ignore
-
-    services.AddScoped<IDatabaseService, DatabaseService>() |> ignore
-
-    services
-        .AddAuthentication("Basic")
-        .AddScheme<BasicAuthenticationOptions, BasicAuthHandler>("Basic", null)
-    |> ignore
-
-    services.AddScoped<IAuthenticationManager, SubsonicAuthenticationManager>()
-    |> ignore
-
-    services.AddSingleton<Xml.ISerializer>(CustomXmlSerializer(xmlWriterSettings))
-    |> ignore
+module Program =
 
 
-[<EntryPoint>]
-let main args =
+    DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
 
-    PostgreSQL.OptionTypes.register ()
+    System.Console.OutputEncoding <- System.Text.Encoding.Unicode
 
-    makeOrUpdateAdmin ()
-    makeLibraryRoots () |> ignore
-    let scanTask = startTraverseDirectories ()
+    let exitCode = 0
 
-    Host
-        .CreateDefaultBuilder()
-        .ConfigureWebHostDefaults(fun webHostBuilder ->
-            webHostBuilder
-                .UseUrls("http://*:8080")
-                .Configure(configureApp)
-                .ConfigureServices(configureServices)
-            |> ignore)
-        .UseSerilog()
-        .Build()
-        .Run()
+    let configureApp (app: IApplicationBuilder) =
+        app.UseAuthentication() |> ignore
+        app.UseGiraffe(SerilogAdapter.Enable rootRouter)
 
-    scanTask.Result
-    exitCode
+    let configureServices (services: IServiceCollection) =
+        services.AddGiraffe() |> ignore
+
+        services.AddScoped<IDatabaseService, DatabaseService>() |> ignore
+
+        services
+            .AddAuthentication("Basic")
+            .AddScheme<BasicAuthenticationOptions, BasicAuthHandler>("Basic", null)
+        |> ignore
+
+        services.AddScoped<IAuthenticationManager, SubsonicAuthenticationManager>()
+        |> ignore
+
+        services.AddSingleton<Xml.ISerializer>(CustomXmlSerializer(xmlWriterSettings))
+        |> ignore
+
+    [<EntryPoint>]
+    let main args =
+        PostgreSQL.OptionTypes.register ()
+
+        initLogger ()
+        makeOrUpdateAdmin ()
+        makeLibraryRoots () |> ignore
+        let scanTask = startTraverseDirectories ()
+
+        Host
+            .CreateDefaultBuilder()
+            .ConfigureWebHostDefaults(fun webHostBuilder ->
+                webHostBuilder
+                    .UseUrls("http://*:8080")
+                    .Configure(configureApp)
+                    .ConfigureServices(configureServices)
+                |> ignore)
+            .UseSerilog(Log.Logger)
+            .Build()
+            .Run()
+
+        scanTask.Result
+        exitCode

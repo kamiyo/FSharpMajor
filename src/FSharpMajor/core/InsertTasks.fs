@@ -624,8 +624,9 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
 
                 return!
                     insert {
-                        into directoryItemsTable
-                        value directoryItem
+                        for di in directoryItemsTable do
+                            value directoryItem
+                            excludeColumn di.id
                     }
                     |> conn.InsertOutputAsync<directory_items, directory_items>
             | Some _ ->

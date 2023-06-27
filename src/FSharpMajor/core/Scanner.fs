@@ -4,10 +4,13 @@ module FSharpMajor.Scanner
 
 open System
 open System.IO
+open System.Diagnostics
 open System.Security.Cryptography
 open System.Linq
+open System.Threading.Tasks
 open FSharpMajor.DatabaseTypes
 open Microsoft.AspNetCore.StaticFiles
+open Microsoft.Extensions.Logging
 
 open Dapper.FSharp.PostgreSQL
 
@@ -175,109 +178,117 @@ let isImage (mimeType: string) =
     |> List.exists (fun t -> mimeType.Contains(t, StringComparison.InvariantCultureIgnoreCase))
 
 let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileInfo) (parentId: Guid option) =
-    let logger = LogProvider.getLoggerByFunc ()
 
-    try
-        match fileInfo.Exists with
-        | false -> NoResult
-        | true ->
-            let tags = TagLib.File.Create fileInfo.FullName
+    match fileInfo.Exists with
+    | false -> Task.FromResult NoResult
+    | true ->
+        task {
+            let logger = LogProvider.getLoggerByFunc ()
 
-            match tags.MimeType with
-            | mime when isImage mime ->
-                // Image, so insert it as album art
-                scanImage fileInfo mime
-            | _ ->
-                let logger = LogProvider.getLoggerByFunc ()
-                logger.info (Log.setMessage $"Scanning File: {fileInfo.Name}, {fileInfo.FullName}")
-                // Insert images in tag
-                let images = getImagesFromTag fileInfo |> Seq.toList
+            try
 
-                // Get Album from Tags
-                let albumName, albumFromPath =
-                    match tags.Tag.Album with
-                    | null
-                    | "" ->
-                        let parentsParent = fileInfo.Directory.Parent
+                let tags = TagLib.File.Create fileInfo.FullName
 
-                        match rootDirInfo.Equals parentsParent with // if ../ dir is root, then label current dir as album
-                        | true -> fileInfo.Directory.Name, true
-                        | false -> fileInfo.Directory.Parent.Name, true
-                    | name -> name, false
+                match tags.MimeType with
+                | mime when isImage mime ->
+                    // Image, return it as album art
+                    return scanImage fileInfo mime
+                | _ ->
+                    let logger = LogProvider.getLoggerByFunc ()
+                    logger.debug (Log.setMessage $"Scanning File: {fileInfo.Name}, {fileInfo.FullName}")
+                    // Insert images in tag
+                    let images = getImagesFromTag fileInfo |> Seq.toList
 
-                let albumYear =
-                    match int tags.Tag.Year with
-                    | 0 -> None
-                    | year -> Some year
+                    // Get Album from Tags
+                    let albumName, albumFromPath =
+                        match tags.Tag.Album with
+                        | null
+                        | "" ->
+                            let parentsParent = fileInfo.Directory.Parent
 
-                let genres =
-                    match tags.Tag.Genres |> Array.map (fun g -> g.Split ';') with
-                    | [||] -> List.empty
-                    | arrayArray ->
-                        arrayArray
-                        |> Array.reduce Array.append
-                        |> List.ofArray
-                        |> List.map (fun g ->
-                            { genres.id = Unchecked.defaultof<Guid>
-                              name = g })
+                            match rootDirInfo.Equals parentsParent with // if ../ dir is root, then label current dir as album
+                            | true -> fileInfo.Directory.Name, true
+                            | false -> fileInfo.Directory.Parent.Name, true
+                        | name -> name, false
 
-                let artistTags, artistsFromPath =
-                    match tags.Tag.Performers with
-                    | [||] ->
-                        let parentsParent = fileInfo.Directory.Parent
+                    let albumYear =
+                        match int tags.Tag.Year with
+                        | 0 -> None
+                        | year -> Some year
 
-                        match rootDirInfo.Equals parentsParent with // if ../ dir is root, then no artist
-                        | true -> [], true
-                        | false -> [ fileInfo.Directory.Parent.Name ], true
-                    | artists ->
-                        let separatedArtists =
-                            match artists |> Array.map (fun a -> a.Split ';') with
-                            | [||] -> List.empty
-                            | arrayArray -> arrayArray |> Array.reduce Array.append |> List.ofArray
+                    let genres =
+                        match tags.Tag.Genres |> Array.map (fun g -> g.Split ';') with
+                        | [||] -> List.empty
+                        | arrayArray ->
+                            arrayArray
+                            |> Array.reduce Array.append
+                            |> List.ofArray
+                            |> List.map (fun g ->
+                                { genres.id = Unchecked.defaultof<Guid>
+                                  name = g })
 
-                        separatedArtists, false
+                    let artistTags, artistsFromPath =
+                        match tags.Tag.Performers with
+                        | [||] ->
+                            let parentsParent = fileInfo.Directory.Parent
 
-                let diInstance =
-                    createItem fileInfo tags musicFolderId parentId albumFromPath artistsFromPath
+                            match rootDirInfo.Equals parentsParent with // if ../ dir is root, then no artist
+                            | true -> [], true
+                            | false -> [ fileInfo.Directory.Parent.Name ], true
+                        | artists ->
+                            let separatedArtists =
+                                match artists |> Array.map (fun a -> a.Split ';') with
+                                | [||] -> List.empty
+                                | arrayArray -> arrayArray |> Array.reduce Array.append |> List.ofArray
 
-                let album =
-                    { id = Unchecked.defaultof<Guid>
-                      albums.name = albumName
-                      albums.year = albumYear }
+                            separatedArtists, false
 
-                let artists =
-                    artistTags
-                    |> List.map (fun a ->
+                    let diInstance =
+                        createItem fileInfo tags musicFolderId parentId albumFromPath artistsFromPath
+
+                    let album =
                         { id = Unchecked.defaultof<Guid>
-                          name = a
-                          image_url = None })
-                // Time for relations
-                let albumArtists = [ for artist in artists -> (album, artist) ]
+                          albums.name = albumName
+                          albums.year = albumYear }
 
-                let itemArtists = [ for artist in artists -> (diInstance.path, artist) ]
+                    let artists =
+                        artistTags
+                        |> List.map (fun a ->
+                            { id = Unchecked.defaultof<Guid>
+                              name = a
+                              image_url = None })
+                    // Time for relations
+                    let albumArtists = [ for artist in artists -> (album, artist) ]
 
-                let albumGenres = [ for genre in genres -> (album, genre) ]
+                    let itemArtists = [ for artist in artists -> (diInstance.path, artist) ]
 
-                let albumCoverArt = [ for image in images -> (album, image) ]
+                    let albumGenres = [ for genre in genres -> (album, genre) ]
 
-                FileResult
-                    { Album = album
-                      Images = images
-                      Genres = genres
-                      Artists = artists
-                      Item = diInstance
-                      ItemAlbum = (diInstance.path, album)
-                      AlbumArtists = albumArtists
-                      ItemArtists = itemArtists
-                      AlbumCoverArt = albumCoverArt
-                      AlbumGenres = albumGenres }
-    with
-    | :? TagLib.UnsupportedFormatException as _ex ->
-        logger.info (Log.setMessage $"File {fileInfo.FullName} is not media type.")
-        NoResult
-    | error ->
-        logger.error (Log.setMessage $"{error.Message}")
-        raise error
+                    let albumCoverArt = [ for image in images -> (album, image) ]
+
+                    return
+                        FileResult
+                            { Album = album
+                              Images = images
+                              Genres = genres
+                              Artists = artists
+                              Item = diInstance
+                              ItemAlbum = (diInstance.path, album)
+                              AlbumArtists = albumArtists
+                              ItemArtists = itemArtists
+                              AlbumCoverArt = albumCoverArt
+                              AlbumGenres = albumGenres }
+            with
+            | :? TagLib.UnsupportedFormatException as _ex ->
+                logger.error (Log.setMessage $"File {fileInfo.FullName} is not media type.")
+                return NoResult
+            | :? TagLib.CorruptFileException as _ex ->
+                logger.error (Log.setMessage $"File {fileInfo.FullName} has corrupt/missing headers.")
+                return NoResult
+            | error ->
+                logger.error (Log.setMessage $"{error.Message}")
+                return NoResult
+        }
 
 // Recursive traverse directories
 // Pop current directory from list,
@@ -294,7 +305,7 @@ let rec traverseDirectories
     | [] -> ()
     | (currentDir, parentId) :: rest ->
         let logger = LogProvider.getLoggerByFunc ()
-        logger.info (Log.setMessage $"Current Dir: {currentDir}")
+        logger.info (Log.setMessage $"Scanning dir: {currentDir}")
 
         try
             try
@@ -323,11 +334,14 @@ let rec traverseDirectories
 
                     // Scan children files
                     // Can parallelize this?
-                    let scanResult =
+                    let scanTask =
                         fileList
                         |> List.map (fun f -> scanFile rootDirInfo musicFolderId f (Some insertedDirectory.id))
+                        |> Task.WhenAll
 
-                    logger.debug (Log.setMessage $"Scanned in folder: {scanResult.Length}")
+                    let scanResult = scanTask.Result |> List.ofArray
+
+                    logger.info (Log.setMessage $"{scanResult.Length} media files scanned in {currentDir.FullName}")
 
                     // Separate results into their types by folding
                     let imageInfos, fileResults =
@@ -397,16 +411,17 @@ let rec traverseDirectories
                     logger.debug (Log.setMessage $"artists: %A{artists |> Seq.map (fun a -> a.name)}")
                     logger.debug (Log.setMessage $"items: %A{items |> Seq.map (fun a -> a.path)}")
                     logger.debug (Log.setMessage $"genres: %A{genres |> Seq.map (fun a -> a.name)}")
+                    logger.debug (Log.setMessage $"albumsArtists: %A{reduced.AlbumsArtists}")
 
                     // Time for relations
                     // Create the objects to insert first, then insert
                     let artistsAlbumsToInsert =
                         reduced.AlbumsArtists
                         |> Set.toList
-                        |> List.map (fun (album, artist) ->
-                            let artist = artists |> Seq.find (fun a -> a.name = artist.name)
+                        |> List.map (fun (alb, art) ->
+                            let artist = artists |> Seq.find (fun a -> a.name = art.name)
 
-                            let album = albums |> Seq.find albums.Equals
+                            let album = albums |> Seq.find alb.Equals
 
                             { artist_id = artist.id
                               album_id = album.id })
@@ -421,8 +436,8 @@ let rec traverseDirectories
                     let itemsArtistsToInsert =
                         reduced.ItemsArtists
                         |> Set.toList
-                        |> List.map (fun (itemPath, artist) ->
-                            let artist = artists |> Seq.find (fun a -> a.name = artist.name)
+                        |> List.map (fun (itemPath, art) ->
+                            let artist = artists |> Seq.find (fun a -> a.name = art.name)
                             let item = items |> Seq.find (fun a -> a.path = itemPath)
 
                             { artist_id = artist.id
@@ -434,9 +449,9 @@ let rec traverseDirectories
                     let albumsCoverArtToInsert =
                         reduced.AlbumsCoverArt
                         |> Set.toList
-                        |> List.map (fun (album, cover_art) ->
-                            let album = albums |> Seq.find album.Equals
-                            let image = images |> Seq.find (fun i -> i.hash = cover_art.hash)
+                        |> List.map (fun (alb, ca) ->
+                            let album = albums |> Seq.find alb.Equals
+                            let image = images |> Seq.find (fun i -> i.hash = ca.hash)
 
                             { cover_art_id = image.id
                               album_id = album.id })
@@ -446,9 +461,9 @@ let rec traverseDirectories
                     let albumsGenresToInsert =
                         reduced.AlbumsGenres
                         |> Set.toList
-                        |> List.map (fun (album, genre) ->
-                            let album = albums |> Seq.find album.Equals
-                            let genre = genres |> Seq.find genre.Equals
+                        |> List.map (fun (alb, gen) ->
+                            let album = albums |> Seq.find alb.Equals
+                            let genre = genres |> Seq.find gen.Equals
 
                             { album_id = album.id
                               genre_id = genre.id })
@@ -463,8 +478,8 @@ let rec traverseDirectories
                     let itemsAlbumsToInsert =
                         reduced.ItemsAlbums
                         |> Set.toList
-                        |> List.map (fun (itemPath, album) ->
-                            let album = albums |> Seq.find album.Equals
+                        |> List.map (fun (itemPath, alb) ->
+                            let album = albums |> Seq.find alb.Equals
                             let item = items |> Seq.find (fun a -> a.path = itemPath)
 
                             { item_id = item.id
@@ -505,6 +520,8 @@ let rec traverseDirectories
 
 let startTraverseDirectories () =
     task {
+        let logger = LogProvider.getLoggerByFunc ()
+
         use! conn = npgsqlSource.OpenConnectionAsync()
 
         let! roots =
@@ -516,14 +533,16 @@ let startTraverseDirectories () =
 
 
         for root in roots do
+            logger.info (Log.setMessage $"Scanning library root: {root.path}")
             let dirInfo = DirectoryInfo(root.path)
 
             // Later, also check if scan_completed is not null (Some)
             match dirInfo.Exists with
-            | false ->
-                let logger = LogProvider.getLoggerByFunc ()
-                logger.warn (Log.setMessage $"Library root {root.name} at {root.path} does not exist.")
+            | false -> logger.warn (Log.setMessage $"Library root {root.name} at {root.path} does not exist.")
             | true ->
+                let stopWatch = Stopwatch()
+                stopWatch.Start()
+
                 let dirs: (DirectoryInfo * Guid option) list =
                     dirInfo.GetDirectories()
                     |> Array.sortBy (fun di -> di.Name)
@@ -545,7 +564,11 @@ let startTraverseDirectories () =
                     }
                     |> conn.UpdateAsync<library_roots>
 
+                stopWatch.Stop()
+                logger.info (Log.setMessage $"Traversed {dirInfo.FullName} in {stopWatch.ElapsedMilliseconds}ms")
                 ()
+
+
     }
 
 let ScanForUpdates () =

@@ -1,6 +1,6 @@
 module FSharpMajor.TypeMappers
 
-open FSharpMajor.DatabaseTypes.``public``
+open FSharpMajor.DatabaseTypes
 open FSharpMajor.API.Types
 
 let mapUserToAttributes (user: users) =

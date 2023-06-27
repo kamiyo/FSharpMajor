@@ -1,10 +1,10 @@
-module FSharpMajor.DatabaseTypes.Defaults
+module FSharpMajor.DatabaseTypesDefaults
 
-open FSharpMajor.DatabaseTypes.``public``
+open FSharpMajor.DatabaseTypes
 
 // Default instances of database types
 let defaultUser =
-    { id = System.Guid.Empty
+    { id = Unchecked.defaultof<System.Guid>
       username = ""
       password = ""
       scrobbling = true

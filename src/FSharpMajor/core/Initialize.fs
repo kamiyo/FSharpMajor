@@ -4,8 +4,7 @@ open System.IO
 
 open FSharpMajor.Database
 open FSharpMajor.DatabaseTypes
-open FSharpMajor.DatabaseTypes.``public``
-open FSharpMajor.DatabaseTypes.Defaults
+open FSharpMajor.DatabaseTypesDefaults
 open FSharpMajor.InsertTasks
 
 open Dapper.FSharp.PostgreSQL

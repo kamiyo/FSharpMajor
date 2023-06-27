@@ -5,7 +5,7 @@ open Microsoft.AspNetCore.Http
 open FSharpMajor.DatabaseService
 open FSharpMajor.API.Types
 open FSharpMajor.TypeMappers
-open FSharpMajor.DatabaseTypes.``public``
+open FSharpMajor.DatabaseTypes
 open Dapper.FSharp.PostgreSQL
 
 open Error

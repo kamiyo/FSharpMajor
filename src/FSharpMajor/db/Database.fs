@@ -1,7 +1,7 @@
 module FSharpMajor.Database
 
-open Microsoft.Extensions.Logging
-open Serilog
+open FSharpMajor.Utils
+open Environment
 open dotenv.net
 open FsConfig
 open Npgsql
@@ -37,6 +37,11 @@ let connString =
     $"Host={host};Password={password};Username={user};Database={dbName};Port={port}"
 
 let private dataSourceBuilder = new NpgsqlDataSourceBuilder(connString)
-dataSourceBuilder.UseLoggerFactory logger |> ignore
-dataSourceBuilder.EnableParameterLogging() |> ignore
+
+// match aspnetcoreEnvironment with
+// | "Development" ->
+//     dataSourceBuilder.UseLoggerFactory logger |> ignore
+//     dataSourceBuilder.EnableParameterLogging() |> ignore
+// | _ -> ()
+
 let npgsqlSource = dataSourceBuilder.Build()

@@ -11,25 +11,16 @@ type albums =
 
     override __.Equals(obj: obj) =
         match obj with
-        | :? albums as other -> __.name.Equals other.name && other.year.Equals other.year
+        | :? albums as other -> __.name.Equals other.name
         | _ -> invalidArg (nameof obj) "Object is not an album"
 
-    override __.GetHashCode() =
-        __.name.GetHashCode() + __.year.GetHashCode()
+    override __.GetHashCode() = __.name.GetHashCode()
 
     interface IComparable with
         member __.CompareTo(obj: obj) =
             match obj with
             | null -> 1
-            | :? albums as other ->
-                match __.name.CompareTo other.name with
-                | 0 ->
-                    match __.year, other.year with
-                    | Some a, Some b -> a.CompareTo b
-                    | Some _, None -> 1
-                    | None, Some _ -> -1
-                    | None, None -> 0
-                | result -> result
+            | :? albums as other -> __.name.CompareTo other.name
             | _ -> invalidArg (nameof obj) "Object is not an artist."
 
 [<CLIMutable>]

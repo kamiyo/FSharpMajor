@@ -4,7 +4,6 @@ open Giraffe
 open Microsoft.AspNetCore.Http
 open FSharpMajor.DatabaseService
 open FSharpMajor.DatabaseTypes
-open FSharpMajor.DatabaseTypes.``public``
 open FSharpMajor.API.Types
 open FSharpMajor.TypeMappers
 open Dapper.FSharp.PostgreSQL

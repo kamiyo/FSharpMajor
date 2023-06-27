@@ -11,7 +11,7 @@ open Dapper.FSharp.PostgreSQL
 open FSharpMajor.DatabaseService
 
 open FSharpMajor.DatabaseTypes
-open FSharpMajor.DatabaseTypes.``public``
+open FSharpMajor.DatabaseTypes
 open FSharpMajor.Encryption
 open FSharpMajor.API.Error
 
