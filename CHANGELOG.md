@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.5.0"></a>
+## [1.5.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.5.0) (2023-6-28)
+
+### Features
+
+* **core:** Added all files ([cfdd774](https://www.github.com/kamiyo/FSharpMajor/commit/cfdd77420dd9a30286f90150792750b3c4f811c8))
+* **core:** Refactor InsertTasks to be more generic. Moved some implementation to database types. ([61b4ff9](https://www.github.com/kamiyo/FSharpMajor/commit/61b4ff979d6b2c7959aaf766b9cfc4356303e5f2))
+
 <a name="1.4.0"></a>
 ## [1.4.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.4.0) (2023-6-26)
 
