@@ -115,6 +115,7 @@ CREATE TABLE public.cover_art (
 CREATE TABLE public.directory_items (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     parent_id uuid,
+    music_folder_id uuid,
     name character varying,
     is_dir boolean NOT NULL,
     track integer,
@@ -124,7 +125,7 @@ CREATE TABLE public.directory_items (
     suffix character varying,
     duration integer,
     bit_rate integer,
-    path character varying,
+    path character varying NOT NULL,
     is_video boolean,
     disc_number integer,
     created timestamp without time zone NOT NULL,
@@ -388,7 +389,7 @@ CREATE UNIQUE INDEX artists_name ON public.artists USING btree (name);
 -- Name: directory_items_parent; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX directory_items_parent ON public.directory_items USING btree (parent_id);
+CREATE INDEX directory_items_parent ON public.directory_items USING btree (parent_id);
 
 
 --
@@ -402,7 +403,7 @@ CREATE UNIQUE INDEX directory_items_path ON public.directory_items USING btree (
 -- Name: directory_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX directory_name ON public.directory_items USING btree (name);
+CREATE INDEX directory_name ON public.directory_items USING btree (name);
 
 
 --
@@ -438,7 +439,7 @@ CREATE UNIQUE INDEX users_username ON public.users USING btree (username);
 --
 
 ALTER TABLE ONLY public.albums_cover_art
-    ADD CONSTRAINT albums_cover_art_album_id_fkey FOREIGN KEY (album_id) REFERENCES public.albums(id);
+    ADD CONSTRAINT albums_cover_art_album_id_fkey FOREIGN KEY (album_id) REFERENCES public.albums(id) ON DELETE CASCADE;
 
 
 --
@@ -446,7 +447,7 @@ ALTER TABLE ONLY public.albums_cover_art
 --
 
 ALTER TABLE ONLY public.albums_cover_art
-    ADD CONSTRAINT albums_cover_art_cover_art_id_fkey FOREIGN KEY (cover_art_id) REFERENCES public.cover_art(id);
+    ADD CONSTRAINT albums_cover_art_cover_art_id_fkey FOREIGN KEY (cover_art_id) REFERENCES public.cover_art(id) ON DELETE CASCADE;
 
 
 --
@@ -454,7 +455,7 @@ ALTER TABLE ONLY public.albums_cover_art
 --
 
 ALTER TABLE ONLY public.albums_genres
-    ADD CONSTRAINT albums_genres_album_id_fkey FOREIGN KEY (album_id) REFERENCES public.albums(id);
+    ADD CONSTRAINT albums_genres_album_id_fkey FOREIGN KEY (album_id) REFERENCES public.albums(id) ON DELETE CASCADE;
 
 
 --
@@ -462,7 +463,7 @@ ALTER TABLE ONLY public.albums_genres
 --
 
 ALTER TABLE ONLY public.albums_genres
-    ADD CONSTRAINT albums_genres_genre_id_fkey FOREIGN KEY (genre_id) REFERENCES public.genres(id);
+    ADD CONSTRAINT albums_genres_genre_id_fkey FOREIGN KEY (genre_id) REFERENCES public.genres(id) ON DELETE CASCADE;
 
 
 --
@@ -470,7 +471,7 @@ ALTER TABLE ONLY public.albums_genres
 --
 
 ALTER TABLE ONLY public.albums_users
-    ADD CONSTRAINT albums_users_album_id_fkey FOREIGN KEY (album_id) REFERENCES public.albums(id);
+    ADD CONSTRAINT albums_users_album_id_fkey FOREIGN KEY (album_id) REFERENCES public.albums(id) ON DELETE CASCADE;
 
 
 --
@@ -478,7 +479,7 @@ ALTER TABLE ONLY public.albums_users
 --
 
 ALTER TABLE ONLY public.albums_users
-    ADD CONSTRAINT albums_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+    ADD CONSTRAINT albums_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -486,7 +487,7 @@ ALTER TABLE ONLY public.albums_users
 --
 
 ALTER TABLE ONLY public.artists_albums
-    ADD CONSTRAINT artists_albums_album_id_fkey FOREIGN KEY (album_id) REFERENCES public.albums(id);
+    ADD CONSTRAINT artists_albums_album_id_fkey FOREIGN KEY (album_id) REFERENCES public.albums(id) ON DELETE CASCADE;
 
 
 --
@@ -494,7 +495,7 @@ ALTER TABLE ONLY public.artists_albums
 --
 
 ALTER TABLE ONLY public.artists_albums
-    ADD CONSTRAINT artists_albums_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES public.artists(id);
+    ADD CONSTRAINT artists_albums_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES public.artists(id) ON DELETE CASCADE;
 
 
 --
@@ -502,7 +503,7 @@ ALTER TABLE ONLY public.artists_albums
 --
 
 ALTER TABLE ONLY public.artists_users
-    ADD CONSTRAINT artists_users_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES public.artists(id);
+    ADD CONSTRAINT artists_users_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES public.artists(id) ON DELETE CASCADE;
 
 
 --
@@ -510,7 +511,15 @@ ALTER TABLE ONLY public.artists_users
 --
 
 ALTER TABLE ONLY public.artists_users
-    ADD CONSTRAINT artists_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+    ADD CONSTRAINT artists_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: directory_items directory_items_music_folder_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.directory_items
+    ADD CONSTRAINT directory_items_music_folder_id_fkey FOREIGN KEY (music_folder_id) REFERENCES public.library_roots(id) ON DELETE CASCADE;
 
 
 --
@@ -518,7 +527,7 @@ ALTER TABLE ONLY public.artists_users
 --
 
 ALTER TABLE ONLY public.directory_items
-    ADD CONSTRAINT directory_items_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.directory_items(id);
+    ADD CONSTRAINT directory_items_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.directory_items(id) ON DELETE CASCADE;
 
 
 --
@@ -526,7 +535,7 @@ ALTER TABLE ONLY public.directory_items
 --
 
 ALTER TABLE ONLY public.items_albums
-    ADD CONSTRAINT items_albums_album_id_fkey FOREIGN KEY (album_id) REFERENCES public.albums(id);
+    ADD CONSTRAINT items_albums_album_id_fkey FOREIGN KEY (album_id) REFERENCES public.albums(id) ON DELETE CASCADE;
 
 
 --
@@ -534,7 +543,7 @@ ALTER TABLE ONLY public.items_albums
 --
 
 ALTER TABLE ONLY public.items_albums
-    ADD CONSTRAINT items_albums_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.directory_items(id);
+    ADD CONSTRAINT items_albums_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.directory_items(id) ON DELETE CASCADE;
 
 
 --
@@ -542,7 +551,7 @@ ALTER TABLE ONLY public.items_albums
 --
 
 ALTER TABLE ONLY public.items_artists
-    ADD CONSTRAINT items_artists_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES public.artists(id);
+    ADD CONSTRAINT items_artists_artist_id_fkey FOREIGN KEY (artist_id) REFERENCES public.artists(id) ON DELETE CASCADE;
 
 
 --
@@ -550,7 +559,7 @@ ALTER TABLE ONLY public.items_artists
 --
 
 ALTER TABLE ONLY public.items_artists
-    ADD CONSTRAINT items_artists_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.directory_items(id);
+    ADD CONSTRAINT items_artists_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.directory_items(id) ON DELETE CASCADE;
 
 
 --
@@ -558,7 +567,7 @@ ALTER TABLE ONLY public.items_artists
 --
 
 ALTER TABLE ONLY public.items_users
-    ADD CONSTRAINT items_users_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.directory_items(id);
+    ADD CONSTRAINT items_users_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.directory_items(id) ON DELETE CASCADE;
 
 
 --
@@ -566,7 +575,7 @@ ALTER TABLE ONLY public.items_users
 --
 
 ALTER TABLE ONLY public.items_users
-    ADD CONSTRAINT items_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+    ADD CONSTRAINT items_users_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --

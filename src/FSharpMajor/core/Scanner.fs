@@ -10,7 +10,6 @@ open System.Linq
 open System.Threading.Tasks
 open FSharpMajor.DatabaseTypes
 open Microsoft.AspNetCore.StaticFiles
-open Microsoft.Extensions.Logging
 
 open Dapper.FSharp.PostgreSQL
 
@@ -75,7 +74,7 @@ let createItem
         | null -> (Path.GetFileNameWithoutExtension fi.Name)
         | title -> title
 
-    { id = Unchecked.defaultof<Guid>
+    { id = Guid.NewGuid()
       parent_id = parentId
       music_folder_id = musicFolderId
       name = Some name
@@ -223,9 +222,7 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
                             arrayArray
                             |> Array.reduce Array.append
                             |> List.ofArray
-                            |> List.map (fun g ->
-                                { genres.id = Unchecked.defaultof<Guid>
-                                  name = g })
+                            |> List.map (fun g -> { genres.id = Guid.NewGuid(); name = g })
 
                     let artistTags, artistsFromPath =
                         match tags.Tag.Performers with
@@ -247,14 +244,14 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
                         createItem fileInfo tags musicFolderId parentId albumFromPath artistsFromPath
 
                     let album =
-                        { id = Unchecked.defaultof<Guid>
+                        { id = Guid.NewGuid()
                           albums.name = albumName
                           albums.year = albumYear }
 
                     let artists =
                         artistTags
                         |> List.map (fun a ->
-                            { id = Unchecked.defaultof<Guid>
+                            { id = Guid.NewGuid()
                               name = a
                               image_url = None })
                     // Time for relations
@@ -390,13 +387,13 @@ let rec traverseDirectories
                     )
 
                     // First insert albums (which will check existing)
-                    let insertAlbumsTask = insertAlbums (reduced.Albums |> Set.toList)
+                    let insertAlbumsTask = insertTask (reduced.Albums |> Set.toList)
                     // Insert cover art
-                    let insertImagesTask = insertImages (reduced.Images |> Set.toList)
+                    let insertImagesTask = insertTask (reduced.Images |> Set.toList)
                     // Insert artists, TODO add image_url later
-                    let insertArtistsTask = insertArtists (reduced.Artists |> Set.toList)
+                    let insertArtistsTask = insertTask (reduced.Artists |> Set.toList)
                     // Insert genres
-                    let insertGenresTask = insertGenres (reduced.Genres |> Set.toList)
+                    let insertGenresTask = insertTask (reduced.Genres |> Set.toList)
                     // Insert directory_items
                     let insertItemsTask = insertOrUpdateDirectoryItem reduced.Items
 
@@ -426,7 +423,7 @@ let rec traverseDirectories
                             { artist_id = artist.id
                               album_id = album.id })
 
-                    let insertArtistsAlbumsTask = insertArtistsAlbums artistsAlbumsToInsert
+                    let insertArtistsAlbumsTask = insertJoinTable artistsAlbumsToInsert
 
                     let directoryArtists =
                         [ for artist in artists ->
@@ -444,7 +441,7 @@ let rec traverseDirectories
                               item_id = item.id })
                         |> List.append directoryArtists
 
-                    let insertItemsArtistsTask = insertItemsArtists itemsArtistsToInsert
+                    let insertItemsArtistsTask = insertJoinTable itemsArtistsToInsert
 
                     let albumsCoverArtToInsert =
                         reduced.AlbumsCoverArt
@@ -456,7 +453,7 @@ let rec traverseDirectories
                             { cover_art_id = image.id
                               album_id = album.id })
 
-                    let insertAlbumsCoverArtTask = insertAlbumsCoverArt albumsCoverArtToInsert
+                    let insertAlbumsCoverArtTask = insertJoinTable albumsCoverArtToInsert
 
                     let albumsGenresToInsert =
                         reduced.AlbumsGenres
@@ -468,7 +465,7 @@ let rec traverseDirectories
                             { album_id = album.id
                               genre_id = genre.id })
 
-                    let insertAlbumsGenresTask = insertAlbumsGenres albumsGenresToInsert
+                    let insertAlbumsGenresTask = insertJoinTable albumsGenresToInsert
 
                     let directoryAlbums =
                         [ for album in albums ->
@@ -486,7 +483,7 @@ let rec traverseDirectories
                               album_id = album.id })
                         |> List.append directoryAlbums
 
-                    let insertItemsAlbumsTask = insertItemsAlbums itemsAlbumsToInsert
+                    let insertItemsAlbumsTask = insertJoinTable itemsAlbumsToInsert
 
                     // Make sure all tasks done
                     let albumsArtists = insertArtistsAlbumsTask.Result

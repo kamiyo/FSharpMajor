@@ -3,6 +3,16 @@ module FSharpMajor.DatabaseTypes
 open System
 open System.Globalization
 
+open Dapper.FSharp.PostgreSQL
+
+
+type IQueryField =
+    abstract QueryField: string * string
+
+type IJoinTable =
+    abstract QueryIdNames: string * string
+    abstract QueryIdValues: Guid * Guid
+
 [<CLIMutable; CustomEquality; CustomComparison>]
 type albums =
     { id: System.Guid
@@ -16,6 +26,9 @@ type albums =
 
     override __.GetHashCode() = __.name.GetHashCode()
 
+    interface IQueryField with
+        member __.QueryField = nameof __.name, __.name
+
     interface IComparable with
         member __.CompareTo(obj: obj) =
             match obj with
@@ -25,13 +38,21 @@ type albums =
 
 [<CLIMutable>]
 type albums_cover_art =
-    { album_id: System.Guid
-      cover_art_id: System.Guid }
+    { album_id: Guid
+      cover_art_id: Guid }
+
+    interface IJoinTable with
+        member __.QueryIdNames = nameof __.album_id, nameof __.cover_art_id
+        member __.QueryIdValues = __.album_id, __.cover_art_id
 
 [<CLIMutable>]
 type albums_genres =
     { genre_id: System.Guid
       album_id: System.Guid }
+
+    interface IJoinTable with
+        member __.QueryIdNames = nameof __.genre_id, nameof __.album_id
+        member __.QueryIdValues = __.genre_id, __.album_id
 
 [<CLIMutable>]
 type albums_users =
@@ -55,6 +76,9 @@ type artists =
 
     override __.GetHashCode() = __.name.GetHashCode()
 
+    interface IQueryField with
+        member __.QueryField = nameof __.name, __.name
+
     interface IComparable with
         member __.CompareTo(obj: obj) =
             match obj with
@@ -66,6 +90,10 @@ type artists =
 type artists_albums =
     { artist_id: System.Guid
       album_id: System.Guid }
+
+    interface IJoinTable with
+        member __.QueryIdNames = nameof __.artist_id, nameof __.album_id
+        member __.QueryIdValues = __.artist_id, __.album_id
 
 [<CLIMutable>]
 type artists_users =
@@ -91,6 +119,9 @@ type cover_art =
 
     override __.GetHashCode() =
         Int32.Parse(__.hash, NumberStyles.HexNumber)
+
+    interface IQueryField with
+        member __.QueryField = nameof __.hash, __.hash
 
     interface IComparable with
         member __.CompareTo(obj: obj) =
@@ -133,6 +164,9 @@ type genres =
 
     override __.GetHashCode() = __.name.GetHashCode()
 
+    interface IQueryField with
+        member __.QueryField = nameof __.name, __.name
+
     interface IComparable with
         member __.CompareTo(obj: obj) =
             match obj with
@@ -145,10 +179,18 @@ type items_albums =
     { item_id: System.Guid
       album_id: System.Guid }
 
+    interface IJoinTable with
+        member __.QueryIdNames = nameof __.item_id, nameof __.album_id
+        member __.QueryIdValues = __.item_id, __.album_id
+
 [<CLIMutable>]
 type items_artists =
     { item_id: System.Guid
       artist_id: System.Guid }
+
+    interface IJoinTable with
+        member __.QueryIdNames = nameof __.item_id, nameof __.artist_id
+        member __.QueryIdValues = __.item_id, __.artist_id
 
 [<CLIMutable>]
 type items_users =
@@ -190,3 +232,16 @@ type users =
       video_conversion_role: bool
       max_bit_rate: Option<int>
       avatar_last_changed: Option<System.DateTime> }
+
+
+let coverArtTable = table<cover_art>
+let directoryItemsTable = table<directory_items>
+let artistsTable = table<artists>
+let albumsTable = table<albums>
+let genresTable = table<genres>
+let itemsArtistsTable = table<items_artists>
+let libraryRootsTable = table<library_roots>
+let albumsCoverArtTable = table<albums_cover_art>
+let itemsAlbumsTable = table<items_albums>
+let artistsAlbumsTable = table<artists_albums>
+let albumsGenresTable = table<albums_genres>

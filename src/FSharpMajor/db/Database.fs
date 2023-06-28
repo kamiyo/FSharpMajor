@@ -1,11 +1,9 @@
 module FSharpMajor.Database
 
 open FSharpMajor.Utils
-open Environment
 open dotenv.net
 open FsConfig
 open Npgsql
-open FSharpMajor.Utils.Logging
 
 DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
 
