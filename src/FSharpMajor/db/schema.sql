@@ -189,7 +189,8 @@ CREATE TABLE public.library_roots (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name character varying NOT NULL,
     path character varying NOT NULL,
-    scan_completed timestamp without time zone
+    scan_completed timestamp without time zone,
+    is_scanning boolean DEFAULT false NOT NULL
 );
 
 

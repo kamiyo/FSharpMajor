@@ -54,6 +54,19 @@ module Program =
         services.AddSingleton<Xml.ISerializer>(CustomXmlSerializer(xmlWriterSettings))
         |> ignore
 
+    let rec keyboardLoop () =
+        task {
+            let c = Console.ReadKey()
+
+            match c.Key with
+            | ConsoleKey.R ->
+                Console.WriteLine("\n")
+                let scanTask = scanForUpdates ()
+                scanTask.Result
+                return! keyboardLoop ()
+            | _ -> return! keyboardLoop ()
+        }
+
     [<EntryPoint>]
     let main args =
         PostgreSQL.OptionTypes.register ()
@@ -61,7 +74,7 @@ module Program =
         initLogger ()
         makeOrUpdateAdmin ()
         makeLibraryRoots () |> ignore
-        let scanTask = startTraverseDirectories ()
+        let scanTask = scanMusicLibrary ()
 
         Host
             .CreateDefaultBuilder()
@@ -76,4 +89,5 @@ module Program =
             .Run()
 
         scanTask.Result
+
         exitCode

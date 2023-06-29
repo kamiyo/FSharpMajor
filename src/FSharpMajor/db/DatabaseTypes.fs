@@ -207,7 +207,8 @@ type library_roots =
     { id: System.Guid
       name: string
       path: string
-      scan_completed: Option<System.DateTime> }
+      scan_completed: Option<System.DateTime>
+      is_scanning: bool }
 
 [<CLIMutable>]
 type schema_migrations = { version: string }

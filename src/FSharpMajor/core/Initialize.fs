@@ -5,7 +5,6 @@ open System.IO
 open FSharpMajor.Database
 open FSharpMajor.DatabaseTypes
 open FSharpMajor.DatabaseTypesDefaults
-open FSharpMajor.InsertTasks
 
 open Dapper.FSharp.PostgreSQL
 open FsConfig
@@ -105,7 +104,8 @@ let makeLibraryRoots () =
             { id = System.Guid.Empty
               name = s |> Path.GetDirectoryName |> Path.GetFileName
               path = s
-              scan_completed = None })
+              scan_completed = None
+              is_scanning = false })
 
     match needed with
     | [] -> 0

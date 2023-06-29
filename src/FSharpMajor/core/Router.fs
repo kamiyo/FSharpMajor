@@ -2,6 +2,7 @@ module FSharpMajor.Router
 
 open Giraffe
 
+open FSharpMajor.API.Scanning
 open FSharpMajor.API.Error
 open FSharpMajor.API.System
 open FSharpMajor.API.User
@@ -18,7 +19,8 @@ let apiRouter: HttpHandler =
 
 let rootRouter: HttpHandler =
     choose
-        [ GET
+        [ GET >=> route "/update" >=> updateScanHandler
+          GET
           >=> setXmlType
           >=> requiresAuthentication subsonicError
           >=> choose [ subRoute "/rest" apiRouter ]
