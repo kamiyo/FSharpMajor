@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.8.0"></a>
+## [1.8.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.8.0) (2023-7-1)
+
+### Features
+
+* **core:** getMusicFolders implemented. Added mimetype tests ([cf55f61](https://www.github.com/kamiyo/FSharpMajor/commit/cf55f61c7b77691dacb19171c83a891cf669c68b))
+
 <a name="1.7.0"></a>
 ## [1.7.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.7.0) (2023-7-1)
 
