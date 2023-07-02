@@ -148,17 +148,13 @@ let insertJoinTable (entities: 'a list) =
             use! conn = npgsqlSource.OpenConnectionAsync()
             return! insertOneJoin conn entity
         }
-    | h :: _ ->
+    | _ ->
         task {
             use! conn = npgsqlSource.OpenConnectionAsync()
             return! insertManyJoins conn entities
         }
 
-let rec updateItemsLoop
-    (updateList: directory_items list)
-    (updated: directory_items list)
-    (conn: Npgsql.NpgsqlConnection)
-    =
+let rec updateItemsLoop (updateList: directory_items list) (updated: directory_items list) (conn: NpgsqlConnection) =
     task {
         match updateList with
         | [] -> return updated
@@ -203,7 +199,7 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
                             excludeColumn di.id
                     }
                     |> conn.UpdateOutputAsync<directory_items, directory_items>
-            | Some e -> return exists
+            | Some _ -> return exists
             | None ->
                 logger.info (Log.setMessage $"%A{directoryItem.path} to be inserted")
 

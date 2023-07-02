@@ -1,9 +1,9 @@
-module FSharpMajor.Tests
+module FSharpMajor.Tests.Encryption
 
 open System
 open Xunit
 open FsUnit.Xunit
-open Encryption
+open FSharpMajor.Encryption
 open FsUnitTyped.TopLevelOperators
 open Xunit.Abstractions
 open Giraffe.ViewEngine.HtmlElements

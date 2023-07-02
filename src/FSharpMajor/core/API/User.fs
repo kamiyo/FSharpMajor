@@ -12,11 +12,10 @@ open Error
 
 let userHandler: HttpHandler =
     fun (next: HttpFunc) (ctx: HttpContext) ->
-        let conn = ctx.GetDatabaseQueryContext().Connection
+        use conn = ctx.GetDatabaseQueryContext().OpenConnection()
 
         match ctx.TryGetQueryStringValue "username" with
         | Some username when username = ctx.User.Identity.Name || ctx.User.IsInRole "Admin" ->
-            let usersTable = table<users>
 
             let users =
                 select {

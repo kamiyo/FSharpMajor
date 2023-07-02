@@ -73,7 +73,7 @@ type CustomXmlSerializer(settings) =
                 serializer.Serialize(writer, o, subsonicNamespace)
                 stream.ToArray()
 
-        member __.Deserialize<'T>(xml: string) =
+        member _.Deserialize<'T>(xml: string) =
             let serializer = XmlSerializer(typeof<'T>)
             use reader = new StringReader(xml)
             serializer.Deserialize reader :?> 'T

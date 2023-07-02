@@ -29,8 +29,6 @@ let makeOrUpdateAdmin () =
 
     use conn = npgsqlSource.OpenConnection()
 
-    let usersTable = table<users>
-
     let exists =
         select {
             for u in usersTable do
@@ -78,8 +76,9 @@ let makeLibraryRoots () =
         | Ok config -> config
         | Error error ->
             match error with
-            | NotFound envVarName -> failwithf "Environment variable %s not found" envVarName
-            | BadValue(envVarName, value) -> failwithf "Environment variable %s has invalid value %s" envVarName value
+            | NotFound envVarName -> failwithf $"Environment variable %s{envVarName} not found"
+            | BadValue(envVarName, value) ->
+                failwithf $"Environment variable %s{envVarName} has invalid value %s{value}"
             | NotSupported msg -> failwith msg
 
     let roots = config.LibraryRoots.Split ',' |> Array.map (fun s -> s.Trim())

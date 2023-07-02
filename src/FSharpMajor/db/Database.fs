@@ -35,7 +35,7 @@ let connString =
 
     $"Host={host};Password={password};Username={user};Database={dbName};Port={port};Include Error Detail=true"
 
-let private dataSourceBuilder = new NpgsqlDataSourceBuilder(connString)
+let private dataSourceBuilder = NpgsqlDataSourceBuilder(connString)
 
 // let logger =
 //     LoggerFactory.Create(fun logging -> logging.AddSerilog(Log.Logger) |> ignore)

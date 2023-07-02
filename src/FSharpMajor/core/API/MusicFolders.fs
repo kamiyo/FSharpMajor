@@ -1,34 +1,32 @@
-module FSharpMajor.API.Users
+﻿module FSharpMajor.API.MusicFolders
 
 open Giraffe
 open Microsoft.AspNetCore.Http
 open FSharpMajor.DatabaseService
 open FSharpMajor.DatabaseTypes
 open FSharpMajor.API.Types
-open FSharpMajor.TypeMappers
 open Dapper.FSharp.PostgreSQL
 
-let usersHandler: HttpHandler =
+let musicFoldersHandler: HttpHandler =
     fun (next: HttpFunc) (ctx: HttpContext) ->
         use conn = ctx.GetDatabaseQueryContext().OpenConnection()
-        let usersTable = table<users>
 
-        let usersTask =
+        let foldersTask =
             select {
-                for u in usersTable do
+                for u in libraryRootsTable do
                     selectAll
             }
-            |> conn.SelectAsync<users>
+            |> conn.SelectAsync<library_roots>
 
-        let users =
-            usersTask.Result
+        let libraryFolders =
+            foldersTask.Result
             |> Array.ofSeq
-            |> Array.map (fun u -> User(mapUserToAttributes u))
+            |> Array.map (fun r -> MusicFolder(MusicFolderAttributes(id = r.id.ToString(), name = Some r.name)))
 
         let serializer = ctx.GetXmlSerializer()
 
         let body =
-            SubsonicResponse(children = XmlElements [| Users(children = users) |])
+            SubsonicResponse(children = XmlElements [| MusicFolders(children = libraryFolders) |])
             |> serializer.Serialize
 
         setBody body next ctx

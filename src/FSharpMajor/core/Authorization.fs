@@ -11,7 +11,6 @@ open Dapper.FSharp.PostgreSQL
 open FSharpMajor.DatabaseService
 
 open FSharpMajor.DatabaseTypes
-open FSharpMajor.DatabaseTypes
 open FSharpMajor.Encryption
 open FSharpMajor.API.Error
 
@@ -40,7 +39,7 @@ let getRoles user =
           ("VideoConversion", user.video_conversion_role) ]
 
     seq {
-        for (k, v) in map do
+        for k, v in map do
             if v then
                 yield k
     }
@@ -51,8 +50,7 @@ type IAuthenticationManager =
 
 type SubsonicAuthenticationManager() =
     interface IAuthenticationManager with
-        member __.Authenticate username token salt connection =
-            let usersTable = table<users>
+        member _.Authenticate username token salt connection =
 
             let userResults =
                 select {
@@ -69,12 +67,12 @@ type SubsonicAuthenticationManager() =
                 match checkHashedPassword token salt decrypted with
                 | false -> None
                 | true ->
-                    let roles = seq { for r in getRoles user -> new Claim(ClaimTypes.Role, r) }
+                    let roles = seq { for r in getRoles user -> Claim(ClaimTypes.Role, r) }
 
                     let claims =
                         seq {
                             yield! roles
-                            yield new Claim(ClaimTypes.Name, user.username)
+                            yield Claim(ClaimTypes.Name, user.username)
                         }
 
                     Some(claims))
@@ -88,7 +86,7 @@ type BasicAuthenticationOptions() =
 type BasicAuthHandler
     (options, logger, encoder, clock, authManager: IAuthenticationManager, queryContext: IDatabaseService) =
     inherit AuthenticationHandler<BasicAuthenticationOptions>(options, logger, encoder, clock)
-    member __.authManager = authManager
+    member _.authManager = authManager
 
     override __.HandleAuthenticateAsync() =
         let request = __.Request
@@ -106,11 +104,11 @@ type BasicAuthHandler
             && query.TryGetValue("s", &salt)
         with
         | true ->
-            let conn = queryContext.Connection
+            use conn = queryContext.OpenConnection()
 
             match __.authManager.Authenticate username[0] token[0] salt[0] conn with
             | Some claims ->
-                let identity = new ClaimsIdentity(claims, __.Scheme.Name)
+                let identity = ClaimsIdentity(claims, __.Scheme.Name)
 
                 let roles =
                     seq {
@@ -120,8 +118,8 @@ type BasicAuthHandler
                     }
                     |> Array.ofSeq
 
-                let principal = new GenericPrincipal(identity, roles)
-                let ticket = new AuthenticationTicket(principal, __.Scheme.Name)
+                let principal = GenericPrincipal(identity, roles)
+                let ticket = AuthenticationTicket(principal, __.Scheme.Name)
                 task { return AuthenticateResult.Success(ticket) }
             | None ->
                 __.Context.Items["subsonicCode"] <- ErrorEnum.Credentials

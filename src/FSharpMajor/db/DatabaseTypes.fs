@@ -262,3 +262,4 @@ let albumsCoverArtTable = table<albums_cover_art>
 let itemsAlbumsTable = table<items_albums>
 let artistsAlbumsTable = table<artists_albums>
 let albumsGenresTable = table<albums_genres>
+let usersTable = table<users>

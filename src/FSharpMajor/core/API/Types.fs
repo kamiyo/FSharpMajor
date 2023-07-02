@@ -13,7 +13,7 @@ let currentVersion =
     LiteralProviders.Exec<"dotnet", "fsi ./scripts/getVersion.fsx">.Output
 
 
-let subsonicNamespace = new XmlSerializerNamespaces()
+let subsonicNamespace = XmlSerializerNamespaces()
 subsonicNamespace.Add("", "http://subsonic.org/restapi")
 
 type BaseAttributes() =
@@ -23,8 +23,8 @@ type BaseAttributes() =
                   (property.Name, property.GetValue(__)) ]
             |> Map.ofSeq
         with e ->
-            let logger = LogProvider.getLoggerByType (typeof<BaseAttributes>)
-            logger.error (Log.setMessage ($"Exception : {e.Message}"))
+            let logger = LogProvider.getLoggerByType typeof<BaseAttributes>
+            logger.error (Log.setMessage $"Exception : {e.Message}")
             Map.empty
 
 let upCastAttributesInOption attribute = attribute :> BaseAttributes
@@ -32,16 +32,16 @@ let upCastAttributesInOption attribute = attribute :> BaseAttributes
 
 type ErrorAttributes(?code, ?message) =
     inherit BaseAttributes()
-    member __.Code: int = defaultArg code 0
-    member __.Message: string option = message
+    member _.Code: int = defaultArg code 0
+    member _.Message: string option = message
 
 
 type LicenseAttributes(?valid, ?email, ?licenseExpires, ?trialExpires) =
     inherit BaseAttributes()
-    member __.Valid: bool = defaultArg valid true
-    member __.Email: string option = defaultArg email None
-    member __.LicenseExpires: string option = licenseExpires
-    member __.TrialExpires: string option = trialExpires
+    member _.Valid: bool = defaultArg valid true
+    member _.Email: string option = defaultArg email None
+    member _.LicenseExpires: string option = licenseExpires
+    member _.TrialExpires: string option = trialExpires
 
 
 type UserAttributes
@@ -65,37 +65,37 @@ type UserAttributes
         ?avatarLastChanged
     ) =
     inherit BaseAttributes()
-    member __.Username: string = defaultArg username ""
-    member __.Email: string option = defaultArg email None
-    member __.ScrobblingEnabled: bool = defaultArg scrobblingEnabled false
-    member __.MaxBitRate: int option = defaultArg maxBitRate None
-    member __.AdminRole: bool = defaultArg adminRole false
-    member __.SettingsRole: bool = defaultArg settingsRole false
-    member __.DownloadRole: bool = defaultArg downloadRole false
-    member __.UploadRole: bool = defaultArg uploadRole false
-    member __.PlaylistRole: bool = defaultArg playlistRole false
-    member __.CoverartRole: bool = defaultArg coverArtRole false
-    member __.CommentRole: bool = defaultArg commentRole false
-    member __.PodcastRole: bool = defaultArg podcastRole false
-    member __.StreamRole: bool = defaultArg streamRole false
-    member __.JukeboxRole: bool = defaultArg jukeboxRole false
-    member __.ShareRole: bool = defaultArg shareRole false
-    member __.VideoConversionRole: bool = defaultArg videoConversionRole false
-    member __.AvatarLastChanged: DateTime option = defaultArg avatarLastChanged None
+    member _.Username: string = defaultArg username ""
+    member _.Email: string option = defaultArg email None
+    member _.ScrobblingEnabled: bool = defaultArg scrobblingEnabled false
+    member _.MaxBitRate: int option = defaultArg maxBitRate None
+    member _.AdminRole: bool = defaultArg adminRole false
+    member _.SettingsRole: bool = defaultArg settingsRole false
+    member _.DownloadRole: bool = defaultArg downloadRole false
+    member _.UploadRole: bool = defaultArg uploadRole false
+    member _.PlaylistRole: bool = defaultArg playlistRole false
+    member _.CoverArtRole: bool = defaultArg coverArtRole false
+    member _.CommentRole: bool = defaultArg commentRole false
+    member _.PodcastRole: bool = defaultArg podcastRole false
+    member _.StreamRole: bool = defaultArg streamRole false
+    member _.JukeboxRole: bool = defaultArg jukeboxRole false
+    member _.ShareRole: bool = defaultArg shareRole false
+    member _.VideoConversionRole: bool = defaultArg videoConversionRole false
+    member _.AvatarLastChanged: DateTime option = defaultArg avatarLastChanged None
 
-type MusicFolderAttributes(?id, ?name) =
+type MusicFolderAttributes(id, ?name) =
     inherit BaseAttributes()
-    member __.Id: int = defaultArg id 0
-    member __.Name: string option = defaultArg name None
+    member _.Id: string = id
+    member _.Name: string option = defaultArg name None
 
-type SubsonicResponseAttributes(?xmlns, ?status, ?version, ?attrType, ?serverVersion) =
+type SubsonicResponseAttributes(?xmlns, ?status, ?version, ?_attrType, ?serverVersion) =
     inherit BaseAttributes()
-    member __.Xmlns: string = defaultArg xmlns "http://subsonic.org/restapi"
-    member __.Status: string = defaultArg status "ok"
-    member __.Version: string = defaultArg version "1.16.1"
-    member __.Type: string option = (Some "fsharpmajor")
+    member _.Xmlns: string = defaultArg xmlns "http://subsonic.org/restapi"
+    member _.Status: string = defaultArg status "ok"
+    member _.Version: string = defaultArg version "1.16.1"
+    member _.Type: string option = (Some "fsharpmajor")
 
-    member __.ServerVersion: string option =
+    member _.ServerVersion: string option =
         Option.orElse (Some currentVersion) serverVersion
 
 type IXmlElement =
@@ -120,55 +120,55 @@ let optionToXmlChild opt =
 
 type SubsonicResponse(?attributes: SubsonicResponseAttributes, ?children) =
     interface IXmlElement with
-        member __.Name = "subsonic-response"
+        member _.Name = "subsonic-response"
 
-        member __.Attributes =
+        member _.Attributes =
             match attributes with
             | Some attr -> Some(attr :> BaseAttributes)
             | None -> Some(SubsonicResponseAttributes())
 
-        member __.Children = defaultArg children NoElement
+        member _.Children = defaultArg children NoElement
 
 type Folder(child: string) =
     interface IXmlElement with
-        member __.Name = "folder"
-        member __.Attributes = None
-        member __.Children = Text child
+        member _.Name = "folder"
+        member _.Attributes = None
+        member _.Children = Text child
 
 type License(?attributes: LicenseAttributes) =
     interface IXmlElement with
-        member __.Name = "license"
-        member __.Attributes = Option.map upCastAttributesInOption attributes
-        member __.Children = NoElement
+        member _.Name = "license"
+        member _.Attributes = Option.map upCastAttributesInOption attributes
+        member _.Children = NoElement
 
 type User(?attributes: UserAttributes, ?children: Folder[]) =
     interface IXmlElement with
-        member __.Name = "user"
-        member __.Attributes = Option.map upCastAttributesInOption attributes
+        member _.Name = "user"
+        member _.Attributes = Option.map upCastAttributesInOption attributes
 
-        member __.Children = optionToXmlChild children
+        member _.Children = optionToXmlChild children
 
 type Users(?children: User[]) =
     interface IXmlElement with
-        member __.Name = "users"
-        member __.Attributes = None
+        member _.Name = "users"
+        member _.Attributes = None
 
-        member __.Children = optionToXmlChild children
+        member _.Children = optionToXmlChild children
 
 type MusicFolder(?attributes: MusicFolderAttributes) =
     interface IXmlElement with
-        member __.Name = "musicFolder"
-        member __.Attributes = Option.map upCastAttributesInOption attributes
-        member __.Children = NoElement
+        member _.Name = "musicFolder"
+        member _.Attributes = Option.map upCastAttributesInOption attributes
+        member _.Children = NoElement
 
-type Musicfolders(?children: MusicFolder[]) =
+type MusicFolders(?children: MusicFolder[]) =
     interface IXmlElement with
-        member __.Name = "musicFolders"
-        member __.Attributes = None
-        member __.Children = optionToXmlChild children
+        member _.Name = "musicFolders"
+        member _.Attributes = None
+        member _.Children = optionToXmlChild children
 
 type Error(?attributes: ErrorAttributes) =
     interface IXmlElement with
-        member __.Name = "error"
-        member __.Attributes = Option.map upCastAttributesInOption attributes
-        member __.Children = NoElement
+        member _.Name = "error"
+        member _.Attributes = Option.map upCastAttributesInOption attributes
+        member _.Children = NoElement

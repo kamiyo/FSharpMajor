@@ -19,9 +19,11 @@
         <Compile Include="Core/InsertTasks.fs" />
         <Compile Include="Core/Scanner.fs" />
         <Compile Include="Core/API/Error.fs" />
+        <Compile Include="Core\API\Indexes.fs" />
         <Compile Include="Core/API/System.fs" />
         <Compile Include="Core/API/User.fs" />
         <Compile Include="Core/API/Users.fs" />
+        <Compile Include="Core\API\MusicFolders.fs" />
         <Compile Include="Core/API/Scanning.fs" />
         <Compile Include="Core/Authorization.fs" />
         <Compile Include="Core/Initialize.fs" />

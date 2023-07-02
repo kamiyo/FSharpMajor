@@ -52,7 +52,7 @@ let encryptPassword (password: string) =
     Convert.ToBase64String result
 
 let decryptPassword (encrypted: string) =
-    let (iv, cipher) = encrypted |> Convert.FromBase64String |> Array.splitAt 16
+    let iv, cipher = encrypted |> Convert.FromBase64String |> Array.splitAt 16
     cipher |> decodeMessage iv
 
 let checkHashedPassword (hashed: string) (salt: string) (storedPassDecrypted: string) =
@@ -62,4 +62,4 @@ let checkHashedPassword (hashed: string) (salt: string) (storedPassDecrypted: st
         |> md5.ComputeHash
         |> Convert.ToHexString
 
-    System.String.Equals(hashed, toCheck, StringComparison.CurrentCultureIgnoreCase)
+    String.Equals(hashed, toCheck, StringComparison.CurrentCultureIgnoreCase)

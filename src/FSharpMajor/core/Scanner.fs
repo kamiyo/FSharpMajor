@@ -17,6 +17,7 @@ open FSharpMajor.Database
 open FSharpMajor.InsertTasks
 
 let MIMEProvider = FileExtensionContentTypeProvider()
+MIMEProvider.Mappings.Add(".flac", "audio/flac")
 let md5 = MD5.Create()
 
 let getMimeType (file: string) =
@@ -74,12 +75,12 @@ let createItem (fi: FileInfo) (tags: TagLib.File) (musicFolderId: Guid) (parentI
       track = Some(int tags.Tag.Track)
       year = Some(int tags.Tag.Year)
       size = Some fi.Length
-      content_type = Some tags.MimeType
+      content_type = Some(getMimeType fi.Name)
       suffix = Some(fi.Extension.Substring 1)
       duration = Some tags.Properties.Duration.Seconds
       bit_rate = Some tags.Properties.AudioBitrate
       path = fi.FullName
-      is_video = Some(tags.MimeType.Contains "video")
+      is_video = Some((getMimeType fi.Name).Contains "video")
       disc_number = Some(int tags.Tag.Disc)
       created = DateTime.UtcNow
       ``type`` = Some(getMediaType tags) }
@@ -503,12 +504,12 @@ let scanMusicLibrary () =
 
         for root in roots do
             match root.initial_scan, root.is_scanning, DirectoryInfo(root.path) with
-            | (Some _, _, _) -> logger.info (Log.setMessage $"Library root {root.path} already scanned initially.")
-            | (_, true, _) ->
+            | Some _, _, _ -> logger.info (Log.setMessage $"Library root {root.path} already scanned initially.")
+            | _, true, _ ->
                 logger.info (Log.setMessage $"Library root {root.path} is currently being scanned in another thread.")
-            | (_, _, dirInfo) when dirInfo.Exists |> not ->
+            | _, _, dirInfo when dirInfo.Exists |> not ->
                 logger.warn (Log.setMessage $"Library root {root.name} at {root.path} does not exist.")
-            | (_, _, dirInfo) ->
+            | _, _, dirInfo ->
                 logger.info (Log.setMessage $"Scanning library root: {root.path}")
 
                 let! _ =
@@ -549,8 +550,6 @@ let scanMusicLibrary () =
                 stopWatch.Stop()
                 logger.info (Log.setMessage $"Traversed {dirInfo.FullName} in {stopWatch.ElapsedMilliseconds}ms")
                 ()
-
-
     }
 
 let scanForUpdates () =
@@ -701,8 +700,6 @@ let scanForUpdates () =
                     |> List.map (fun d -> (d, None))
 
                 traverseDirectories root.id dirInfo dirs None
-
-
 
                 let updatedRoot =
                     { root with
