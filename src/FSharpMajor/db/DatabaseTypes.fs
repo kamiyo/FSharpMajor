@@ -17,7 +17,8 @@ type IJoinTable =
 type albums =
     { id: System.Guid
       name: string
-      year: Option<int> }
+      year: Option<int>
+      from_path: bool }
 
     override __.Equals(obj: obj) =
         match obj with
@@ -67,7 +68,8 @@ type albums_users =
 type artists =
     { id: System.Guid
       name: string
-      image_url: Option<string> }
+      image_url: Option<string>
+      from_path: bool }
 
     override __.Equals(obj: obj) =
         match obj with
@@ -130,7 +132,7 @@ type cover_art =
             | :? cover_art as other -> __.hash.CompareTo other.hash
             | _ -> invalidArg (nameof obj) "Object is not an cover_art"
 
-[<CLIMutable>]
+[<CLIMutable; CustomEquality; NoComparison>]
 type directory_items =
     { id: System.Guid
       parent_id: Option<System.Guid>
@@ -148,9 +150,23 @@ type directory_items =
       is_video: Option<bool>
       disc_number: Option<int>
       created: System.DateTime
-      ``type``: Option<string>
-      album_from_path: bool
-      artist_from_path: bool }
+      ``type``: Option<string> }
+
+    override __.Equals(obj: obj) =
+        match obj with
+        | :? directory_items as other ->
+            __.name = other.name
+            && __.track = other.track
+            && __.year = other.year
+            && __.size = other.size
+            && __.content_type = other.content_type
+            && __.duration = other.duration
+            && __.bit_rate = other.bit_rate
+            && __.disc_number = other.disc_number
+            && __.``type`` = other.``type``
+        | _ -> invalidArg (nameof obj) "Object is not directory_items"
+
+    override __.GetHashCode() = __.id.GetHashCode()
 
 [<CLIMutable; CustomEquality; CustomComparison>]
 type genres =
@@ -207,7 +223,7 @@ type library_roots =
     { id: System.Guid
       name: string
       path: string
-      scan_completed: Option<System.DateTime>
+      initial_scan: Option<DateTime>
       is_scanning: bool }
 
 [<CLIMutable>]

@@ -20,7 +20,8 @@ SET default_table_access_method = heap;
 CREATE TABLE public.albums (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name character varying NOT NULL,
-    year integer
+    year integer,
+    from_path boolean NOT NULL
 );
 
 
@@ -66,7 +67,8 @@ CREATE TABLE public.albums_users (
 CREATE TABLE public.artists (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name character varying NOT NULL,
-    image_url character varying
+    image_url character varying,
+    from_path boolean NOT NULL
 );
 
 
@@ -129,9 +131,7 @@ CREATE TABLE public.directory_items (
     is_video boolean,
     disc_number integer,
     created timestamp without time zone NOT NULL,
-    type character varying,
-    album_from_path boolean NOT NULL,
-    artist_from_path boolean NOT NULL
+    type character varying
 );
 
 
@@ -189,7 +189,7 @@ CREATE TABLE public.library_roots (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name character varying NOT NULL,
     path character varying NOT NULL,
-    scan_completed timestamp without time zone,
+    initial_scan timestamp without time zone,
     is_scanning boolean DEFAULT false NOT NULL
 );
 

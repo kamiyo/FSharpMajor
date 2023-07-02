@@ -1,9 +1,10 @@
 module FSharpMajor.Database
 
-open FSharpMajor.Utils
 open dotenv.net
 open FsConfig
 open Npgsql
+
+
 
 DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
 
@@ -32,11 +33,15 @@ let connString =
           Host = host } =
         config
 
-    $"Host={host};Password={password};Username={user};Database={dbName};Port={port}"
+    $"Host={host};Password={password};Username={user};Database={dbName};Port={port};Include Error Detail=true"
 
 let private dataSourceBuilder = new NpgsqlDataSourceBuilder(connString)
 
-// match aspnetcoreEnvironment with
+// let logger =
+//     LoggerFactory.Create(fun logging -> logging.AddSerilog(Log.Logger) |> ignore)
+//
+//
+// match System.Environment.GetEnvironmentVariable "ASPNETCORE_ENVIRONMENT" with
 // | "Development" ->
 //     dataSourceBuilder.UseLoggerFactory logger |> ignore
 //     dataSourceBuilder.EnableParameterLogging() |> ignore

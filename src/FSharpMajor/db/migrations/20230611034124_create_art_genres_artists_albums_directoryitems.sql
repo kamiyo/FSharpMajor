@@ -16,13 +16,15 @@ CREATE TABLE genres (
 CREATE TABLE artists (
     id              uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     name            varchar NOT NULL,
-    image_url       varchar
+    image_url       varchar,
+    from_path       boolean NOT NULL
 );
 
 CREATE TABLE albums (
     id              uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     name            varchar NOT NULL,
-    year            integer
+    year            integer,
+    from_path       boolean NOT NULL
 );
 
 CREATE TABLE directory_items (
@@ -42,9 +44,7 @@ CREATE TABLE directory_items (
     is_video            boolean,
     disc_number         integer,
     created             timestamp NOT NULL,
-    type                varchar,
-    album_from_path     boolean NOT NULL,
-    artist_from_path    boolean NOT NULL
+    type                varchar
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS artists_name ON artists(name);

@@ -104,7 +104,7 @@ let makeLibraryRoots () =
             { id = System.Guid.Empty
               name = s |> Path.GetDirectoryName |> Path.GetFileName
               path = s
-              scan_completed = None
+              initial_scan = None
               is_scanning = false })
 
     match needed with

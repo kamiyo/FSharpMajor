@@ -192,17 +192,7 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
                 |> conn.SelectAsync<directory_items>
 
             match exists |> Seq.tryHead with
-            | None ->
-                logger.info (Log.setMessage $"%A{directoryItem.path} to be inserted")
-
-                return!
-                    insert {
-                        for di in directoryItemsTable do
-                            value directoryItem
-                            excludeColumn di.id
-                    }
-                    |> conn.InsertOutputAsync<directory_items, directory_items>
-            | Some _ ->
+            | Some e when e <> directoryItem ->
                 logger.info (Log.setMessage $"%A{directoryItem.path} to be updated")
 
                 return!
@@ -213,6 +203,18 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
                             excludeColumn di.id
                     }
                     |> conn.UpdateOutputAsync<directory_items, directory_items>
+            | Some e -> return exists
+            | None ->
+                logger.info (Log.setMessage $"%A{directoryItem.path} to be inserted")
+
+                return!
+                    insert {
+                        for di in directoryItemsTable do
+                            value directoryItem
+                            excludeColumn di.id
+                    }
+                    |> conn.InsertOutputAsync<directory_items, directory_items>
+
         | _ ->
             let paths = directoryItems |> List.map (fun di -> di.path)
 
@@ -225,9 +227,9 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
 
             let existingPaths = exists |> Seq.map (fun di -> di.path) |> List.ofSeq
 
-            let toUpdate, toInsert =
+            let toInsert =
                 directoryItems
-                |> List.partition (fun di -> existingPaths |> List.contains di.path)
+                |> List.filter (fun di -> existingPaths |> List.contains di.path |> not)
 
             let! inserted =
                 match toInsert with
@@ -240,6 +242,11 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
                     }
                     |> conn.InsertOutputAsync<directory_items, directory_items>
 
+            let noUpdate, toUpdate =
+                exists
+                |> List.ofSeq
+                |> List.partition (fun ex -> directoryItems |> List.contains ex) // Hopefully .contains uses custom Equality
+
             let! updated =
                 match toUpdate with
                 | [] -> Task.FromResult Seq.empty
@@ -249,5 +256,11 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
                         return result |> Seq.ofList
                     }
 
-            return Seq.append inserted updated
+            return
+                seq {
+                    inserted
+                    updated
+                    Seq.ofList noUpdate
+                }
+                |> Seq.concat
     }

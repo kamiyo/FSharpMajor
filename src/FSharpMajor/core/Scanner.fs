@@ -6,7 +6,6 @@ open System
 open System.IO
 open System.Diagnostics
 open System.Security.Cryptography
-open System.Linq
 open System.Threading.Tasks
 open FSharpMajor.DatabaseTypes
 open Microsoft.AspNetCore.StaticFiles
@@ -61,14 +60,7 @@ let getMediaType (tagFile: TagLib.File) =
     else if tagFile.MimeType.Contains "video" then "video"
     else "music"
 
-let createItem
-    (fi: FileInfo)
-    (tags: TagLib.File)
-    (musicFolderId: Guid)
-    (parentId: Guid option)
-    (albumFromPath: bool)
-    (artistFromPath: bool)
-    =
+let createItem (fi: FileInfo) (tags: TagLib.File) (musicFolderId: Guid) (parentId: Guid option) =
     let name =
         match tags.Tag.Title with
         | null -> (Path.GetFileNameWithoutExtension fi.Name)
@@ -90,9 +82,7 @@ let createItem
       is_video = Some(tags.MimeType.Contains "video")
       disc_number = Some(int tags.Tag.Disc)
       created = DateTime.UtcNow
-      ``type`` = Some(getMediaType tags)
-      album_from_path = albumFromPath
-      artist_from_path = artistFromPath }
+      ``type`` = Some(getMediaType tags) }
 
 let createDirectory (currentDir: DirectoryInfo) (musicFolderId: Guid) (parentId: Guid option) =
     { id = Guid.NewGuid()
@@ -111,9 +101,7 @@ let createDirectory (currentDir: DirectoryInfo) (musicFolderId: Guid) (parentId:
       is_video = None
       disc_number = None
       created = DateTime.UtcNow
-      ``type`` = None
-      album_from_path = false
-      artist_from_path = false }
+      ``type`` = None }
 
 type FileResult =
     { Album: albums
@@ -176,6 +164,11 @@ let isImage (mimeType: string) =
     imageMimeTypes
     |> List.exists (fun t -> mimeType.Contains(t, StringComparison.InvariantCultureIgnoreCase))
 
+let rec findFirstLevelDir (rootDirInfo: DirectoryInfo) (currentDir: DirectoryInfo) =
+    match currentDir.Parent with
+    | d when d = rootDirInfo -> currentDir
+    | d -> findFirstLevelDir rootDirInfo d
+
 let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileInfo) (parentId: Guid option) =
 
     match fileInfo.Exists with
@@ -202,12 +195,7 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
                     let albumName, albumFromPath =
                         match tags.Tag.Album with
                         | null
-                        | "" ->
-                            let parentsParent = fileInfo.Directory.Parent
-
-                            match rootDirInfo.Equals parentsParent with // if ../ dir is root, then label current dir as album
-                            | true -> fileInfo.Directory.Name, true
-                            | false -> fileInfo.Directory.Parent.Name, true
+                        | "" -> fileInfo.Directory.Name, true // If no album tag, then get from dir name
                         | name -> name, false
 
                     let albumYear =
@@ -226,12 +214,11 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
 
                     let artistTags, artistsFromPath =
                         match tags.Tag.Performers with
-                        | [||] ->
-                            let parentsParent = fileInfo.Directory.Parent
-
-                            match rootDirInfo.Equals parentsParent with // if ../ dir is root, then no artist
-                            | true -> [], true
-                            | false -> [ fileInfo.Directory.Parent.Name ], true
+                        | [||] -> // We will get artist from first level dir under library root
+                            match findFirstLevelDir rootDirInfo fileInfo.Directory with
+                            | d when d = fileInfo.Directory -> // If file's dir is first level, then no artist
+                                [ "[Unknown Artist]" ], true
+                            | d -> [ d.Name ], true
                         | artists ->
                             let separatedArtists =
                                 match artists |> Array.map (fun a -> a.Split ';') with
@@ -240,20 +227,21 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
 
                             separatedArtists, false
 
-                    let diInstance =
-                        createItem fileInfo tags musicFolderId parentId albumFromPath artistsFromPath
+                    let diInstance = createItem fileInfo tags musicFolderId parentId
 
                     let album =
                         { id = Guid.NewGuid()
                           albums.name = albumName
-                          albums.year = albumYear }
+                          albums.year = albumYear
+                          albums.from_path = albumFromPath }
 
                     let artists =
                         artistTags
                         |> List.map (fun a ->
                             { id = Guid.NewGuid()
                               name = a
-                              image_url = None })
+                              image_url = None
+                              from_path = artistsFromPath })
                     // Time for relations
                     let albumArtists = [ for artist in artists -> (album, artist) ]
 
@@ -416,11 +404,6 @@ let rec traverseDirectories
 
                     let insertArtistsAlbumsTask = insertJoinTable artistsAlbumsToInsert
 
-                    let directoryArtists =
-                        [ for artist in artists ->
-                              { item_id = insertedDirectory.id
-                                artist_id = artist.id } ]
-
                     let itemsArtistsToInsert =
                         reduced.ItemsArtists
                         |> Set.toList
@@ -430,7 +413,6 @@ let rec traverseDirectories
 
                             { artist_id = artist.id
                               item_id = item.id })
-                        |> List.append directoryArtists
 
                     let insertItemsArtistsTask = insertJoinTable itemsArtistsToInsert
 
@@ -458,10 +440,10 @@ let rec traverseDirectories
 
                     let insertAlbumsGenresTask = insertJoinTable albumsGenresToInsert
 
-                    let directoryAlbums =
-                        [ for album in albums ->
-                              { item_id = insertedDirectory.id
-                                album_id = album.id } ]
+                    // let directoryAlbums =
+                    //     [ for album in albums ->
+                    //           { item_id = insertedDirectory.id
+                    //             album_id = album.id } ]
 
                     let itemsAlbumsToInsert =
                         reduced.ItemsAlbums
@@ -472,7 +454,6 @@ let rec traverseDirectories
 
                             { item_id = item.id
                               album_id = album.id })
-                        |> List.append directoryAlbums
 
                     let insertItemsAlbumsTask = insertJoinTable itemsAlbumsToInsert
 
@@ -489,7 +470,7 @@ let rec traverseDirectories
                     logger.debug (Log.setMessage $"albumsCoverArt: %A{albumsCoverArt}")
                     logger.debug (Log.setMessage $"albumsGenres: %A{albumsGenres}")
                     ()
-            // Should notify mailboxprocessor of Seq.length items
+            // Should notify eventual mailboxprocessor of Seq.length items
             with exn ->
                 logger.error (Log.setMessage $"%A{exn}")
         finally
@@ -521,10 +502,8 @@ let scanMusicLibrary () =
 
 
         for root in roots do
-            match root.scan_completed, root.is_scanning, DirectoryInfo(root.path) with
-            | (Some _, _, _) ->
-                logger.info (Log.setMessage $"Library root {root.path} already scanned initially.")
-                ()
+            match root.initial_scan, root.is_scanning, DirectoryInfo(root.path) with
+            | (Some _, _, _) -> logger.info (Log.setMessage $"Library root {root.path} already scanned initially.")
             | (_, true, _) ->
                 logger.info (Log.setMessage $"Library root {root.path} is currently being scanned in another thread.")
             | (_, _, dirInfo) when dirInfo.Exists |> not ->
@@ -554,14 +533,14 @@ let scanMusicLibrary () =
 
                 let updatedRoot =
                     { root with
-                        scan_completed = Some DateTime.UtcNow
+                        initial_scan = Some DateTime.UtcNow
                         is_scanning = false }
 
                 let! _ =
                     update {
                         for r in libraryRootsTable do
                             set updatedRoot
-                            includeColumn r.scan_completed
+                            includeColumn r.initial_scan
                             includeColumn r.is_scanning
                             where (r.id = root.id)
                     }
@@ -588,7 +567,7 @@ let scanForUpdates () =
 
 
         for root in roots do
-            match root.is_scanning, root.scan_completed with
+            match root.is_scanning, root.initial_scan with
             | true, _ -> logger.warn (Log.setMessage $"Library root {root.path} is currently being scanned already.")
             | false, None ->
                 logger.warn (Log.setMessage $"Library root {root.path} has not been initially scanned yet.")
@@ -714,35 +693,27 @@ let scanForUpdates () =
                     logger.info (Log.setMessage $"Deleted cover art: {i.path}")
 
                 let dirInfo = DirectoryInfo(root.path)
-                // Get only files changed since scan_completed
+                // Now rescan for files that have changed
                 let dirs: (DirectoryInfo * Guid option) list =
-                    match root.scan_completed with
-                    | None -> dirInfo.GetDirectories()
-                    | Some lastScanCompleted ->
-                        dirInfo
-                            .EnumerateDirectories()
-                            .Where(fun d ->
-                                d.CreationTimeUtc > lastScanCompleted || d.LastWriteTimeUtc > lastScanCompleted)
-                        |> Array.ofSeq
+                    dirInfo.GetDirectories()
                     |> Array.sortBy (fun di -> di.Name)
                     |> List.ofArray
                     |> List.map (fun d -> (d, None))
 
-                logger.info (Log.setMessage $"Scanning dirs: %A{dirs}")
+                traverseDirectories root.id dirInfo dirs None
 
-                // Now rescan with files that have changed
-                traverseDirectories root.id dirInfo dirs root.scan_completed
+
 
                 let updatedRoot =
                     { root with
-                        scan_completed = Some DateTime.UtcNow
+                        initial_scan = Some DateTime.UtcNow
                         is_scanning = false }
 
                 let! _ =
                     update {
                         for r in libraryRootsTable do
                             set updatedRoot
-                            includeColumn r.scan_completed
+                            includeColumn r.initial_scan
                             includeColumn r.is_scanning
                             where (r.id = root.id)
                     }
