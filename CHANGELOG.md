@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.9.0"></a>
+## [1.9.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.9.0) (2023-7-5)
+
+### Features
+
+* **core:** Working on selecting indexes ([f6e82d5](https://www.github.com/kamiyo/FSharpMajor/commit/f6e82d57143046d36d1b789c92516426ca21fd1d))
+
 <a name="1.8.0"></a>
 ## [1.8.0](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.8.0) (2023-7-1)
 
