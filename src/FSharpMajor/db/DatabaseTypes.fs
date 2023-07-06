@@ -89,6 +89,21 @@ type artists =
             | _ -> invalidArg (nameof obj) "Object is not an artist."
 
 [<CLIMutable>]
+type artist_with_extensions =
+    { id: Guid
+      name: string
+      image_url: string option
+      from_path: bool
+      starred: DateTime option
+      user_rating: int option
+      last_played: DateTime option
+      average_rating: float option
+      last_modified_time: DateTime }
+
+[<CLIMutable>]
+type avg_rating = { average_rating: float option }
+
+[<CLIMutable>]
 type artists_albums =
     { artist_id: System.Guid
       album_id: System.Guid }

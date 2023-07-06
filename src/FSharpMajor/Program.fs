@@ -2,6 +2,8 @@ namespace FSharpMajor
 
 open System
 
+open FSharpMajor.Scheduler
+open FsConfig
 open Serilog
 
 open FSharpMajor.Utils.Logging
@@ -17,6 +19,8 @@ open Giraffe
 open Giraffe.SerilogExtensions
 open dotenv.net
 
+open Quartz
+
 open Dapper.FSharp
 
 open Initialize
@@ -27,8 +31,16 @@ open Scanner
 
 module Program =
 
+    type TimerConfig = { ScanTime: string }
 
     DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
+
+    let scanTime =
+        match EnvConfig.Get<TimerConfig>() with
+        | Ok config -> TimeSpan.ParseExact(config.ScanTime, @"h\:m", null)
+        | Error _ -> TimeSpan(2, 0, 0)
+
+    let cronTime = $"0 {scanTime.Minutes} {scanTime.Hours} * * ?"
 
     Console.OutputEncoding <- System.Text.Encoding.Unicode
 
@@ -54,18 +66,24 @@ module Program =
         services.AddSingleton<Xml.ISerializer>(CustomXmlSerializer(xmlWriterSettings))
         |> ignore
 
-    let rec keyboardLoop () =
-        task {
-            let c = Console.ReadKey()
+        services.AddQuartz(fun q ->
+            q.SchedulerId <- "Core Scheduler"
+            let jobKey = JobKey("update library", "default group")
 
-            match c.Key with
-            | ConsoleKey.R ->
-                Console.WriteLine("\n")
-                let scanTask = scanForUpdates ()
-                scanTask.Result
-                return! keyboardLoop ()
-            | _ -> return! keyboardLoop ()
-        }
+            q
+                .AddJob<UpdateJob>(jobKey, (fun j -> j.WithDescription("Run library updater") |> ignore))
+                .AddTrigger(fun t ->
+                    t
+                        .WithIdentity("Cron Trigger")
+                        .ForJob(jobKey)
+                        .WithCronSchedule(cronTime)
+                        .WithDescription("Run everyday at 2am")
+                    |> ignore)
+            |> ignore)
+        |> ignore
+
+        services.AddQuartzHostedService() |> ignore
+
 
     [<EntryPoint>]
     let main _ =

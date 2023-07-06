@@ -1,8 +1,8 @@
 module FSharpMajor.Authorization
 
 open System.Security.Claims
-open System.Security.Principal
 
+open System.Security.Principal
 open Microsoft.AspNetCore.Authentication
 open Microsoft.Extensions.Primitives
 
@@ -15,7 +15,6 @@ open FSharpMajor.Encryption
 open FSharpMajor.API.Error
 
 
-open System.Data
 
 type Queries =
     { U: StringValues option
@@ -45,19 +44,19 @@ let getRoles user =
     }
 
 type IAuthenticationManager =
-    abstract member Authenticate:
-        username: string -> token: string -> salt: string -> connection: IDbConnection -> Claim seq option
+    abstract member Authenticate: username: string -> token: string -> salt: string -> Claim seq option
 
-type SubsonicAuthenticationManager() =
+type SubsonicAuthenticationManager(dbContext: IDatabaseService) =
     interface IAuthenticationManager with
-        member _.Authenticate username token salt connection =
+        member _.Authenticate username token salt =
+            use conn = dbContext.OpenConnection()
 
             let userResults =
                 select {
                     for u in usersTable do
                         where (u.username = username)
                 }
-                |> connection.SelectAsync<users>
+                |> conn.SelectAsync<users>
 
             userResults.Result
             |> Seq.tryHead
@@ -83,8 +82,8 @@ type BasicAuthenticationOptions() =
         inherit AuthenticationSchemeOptions()
     end
 
-type BasicAuthHandler
-    (options, logger, encoder, clock, authManager: IAuthenticationManager, queryContext: IDatabaseService) =
+type BasicAuthHandler(options, logger, encoder, clock, authManager: IAuthenticationManager, dbContext: IDatabaseService)
+    =
     inherit AuthenticationHandler<BasicAuthenticationOptions>(options, logger, encoder, clock)
     member _.authManager = authManager
 
@@ -104,9 +103,7 @@ type BasicAuthHandler
             && query.TryGetValue("s", &salt)
         with
         | true ->
-            use conn = queryContext.OpenConnection()
-
-            match __.authManager.Authenticate username[0] token[0] salt[0] conn with
+            match __.authManager.Authenticate username[0] token[0] salt[0] with
             | Some claims ->
                 let identity = ClaimsIdentity(claims, __.Scheme.Name)
 

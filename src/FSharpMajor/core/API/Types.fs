@@ -81,12 +81,31 @@ type UserAttributes
     member _.JukeboxRole: bool = defaultArg jukeboxRole false
     member _.ShareRole: bool = defaultArg shareRole false
     member _.VideoConversionRole: bool = defaultArg videoConversionRole false
-    member _.AvatarLastChanged: DateTime option = defaultArg avatarLastChanged None
+    member _.AvatarLastChanged: DateTime option = avatarLastChanged
+
+type ArtistAttributes(id, name, ?artistImageUrl, ?starred, ?userRating, ?averageRating) =
+    inherit BaseAttributes()
+    member _.Id: string = id
+    member _.Name: string = name
+    member _.ArtistImageUrl: string option = defaultArg artistImageUrl None
+    member _.Starred: string option = defaultArg starred None
+    member _.UserRating: int option = defaultArg userRating None
+    member _.AverageRating: float option = defaultArg averageRating None
+
 
 type MusicFolderAttributes(id, ?name) =
     inherit BaseAttributes()
     member _.Id: string = id
     member _.Name: string option = defaultArg name None
+
+type IndexAttributes(name) =
+    inherit BaseAttributes()
+    member _.Name: string = name
+
+type IndexesAttributes(lastModifiedTime: string, ignoredArticles: string) =
+    inherit BaseAttributes()
+    member _.LastModifiedTime: string = lastModifiedTime
+    member _.IgnoredArticles: string = ignoredArticles
 
 type SubsonicResponseAttributes(?xmlns, ?status, ?version, ?_attrType, ?serverVersion) =
     inherit BaseAttributes()
@@ -172,3 +191,21 @@ type Error(?attributes: ErrorAttributes) =
         member _.Name = "error"
         member _.Attributes = Option.map upCastAttributesInOption attributes
         member _.Children = NoElement
+
+type Artist(?attributes: ArtistAttributes) =
+    interface IXmlElement with
+        member _.Name = "artist"
+        member _.Attributes = Option.map upCastAttributesInOption attributes
+        member _.Children = NoElement
+
+type Index(?attributes: IndexAttributes, ?children: Artist[]) =
+    interface IXmlElement with
+        member _.Name = "index"
+        member _.Attributes = Option.map upCastAttributesInOption attributes
+        member _.Children = optionToXmlChild children
+
+type Indexes(?attributes: IndexesAttributes, ?children: Index[]) =
+    interface IXmlElement with
+        member _.Name = "indexes"
+        member _.Attributes = Option.map upCastAttributesInOption attributes
+        member _.Children = optionToXmlChild children

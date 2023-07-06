@@ -56,16 +56,23 @@ let getImagesFromTag (file: FileInfo) =
 let getMediaType (tagFile: TagLib.File) =
     let genres = tagFile.Tag.Genres
 
-    if Array.contains "audiobook" genres then "audiobook"
-    else if Array.contains "podcast" genres then "podcast"
-    else if tagFile.MimeType.Contains "video" then "video"
-    else "music"
+    if Array.contains "audiobook" genres then
+        Some "audiobook"
+    else if Array.contains "podcast" genres then
+        Some "podcast"
+    else
+        match getMimeType tagFile.Name with
+        | mime when mime.Contains "video" -> Some "video"
+        | mime when mime.Contains "audio" -> Some "audio"
+        | _ -> None
 
 let createItem (fi: FileInfo) (tags: TagLib.File) (musicFolderId: Guid) (parentId: Guid option) =
     let name =
         match tags.Tag.Title with
         | null -> (Path.GetFileNameWithoutExtension fi.Name)
         | title -> title
+
+    let mime = getMimeType fi.Extension
 
     { id = Guid.NewGuid()
       parent_id = parentId
@@ -75,15 +82,15 @@ let createItem (fi: FileInfo) (tags: TagLib.File) (musicFolderId: Guid) (parentI
       track = Some(int tags.Tag.Track)
       year = Some(int tags.Tag.Year)
       size = Some fi.Length
-      content_type = Some(getMimeType fi.Name)
+      content_type = Some mime
       suffix = Some(fi.Extension.Substring 1)
       duration = Some tags.Properties.Duration.Seconds
       bit_rate = Some tags.Properties.AudioBitrate
       path = fi.FullName
-      is_video = Some((getMimeType fi.Name).Contains "video")
+      is_video = Some(mime.Contains "video")
       disc_number = Some(int tags.Tag.Disc)
       created = DateTime.UtcNow
-      ``type`` = Some(getMediaType tags) }
+      ``type`` = getMediaType tags }
 
 let createDirectory (currentDir: DirectoryInfo) (musicFolderId: Guid) (parentId: Guid option) =
     { id = Guid.NewGuid()

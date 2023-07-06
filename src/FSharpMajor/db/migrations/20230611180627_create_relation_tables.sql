@@ -69,10 +69,14 @@ CREATE TABLE albums_cover_art (
 
 CREATE UNIQUE INDEX IF NOT EXISTS items_users_last_played ON items_users(item_id, user_id, last_played);
 CREATE UNIQUE INDEX IF NOT EXISTS albums_users_last_played ON albums_users(album_id, user_id, last_played);
+CREATE INDEX IF NOT EXISTS artists_users_artist ON artists_users(artist_id);
+CREATE INDEX IF NOT EXISTS artists_users_user ON artists_users(user_id);
 
 -- migrate:down
 DROP INDEX IF EXISTS items_users_last_played;
 DROP INDEX IF EXISTS albums_users_last_played;
+DROP INDEX IF EXISTS artists_users_artist;
+DROP INDEX IF EXISTS artists_users_user;
 
 DROP TABLE IF EXISTS albums_cover_art;
 DROP TABLE IF EXISTS items_users;
