@@ -293,15 +293,15 @@ let resultsSeparator (acc: cover_art Set * FileResult list) (r: ScanResult) =
 
 let scanResultAccumulator (accum: ReducedResult) (r: FileResult) =
     { Albums = accum.Albums.Add r.Album
-      Images = r.Images |> List.fold (fun acc -> acc.Add) accum.Images
-      Genres = r.Genres |> List.fold (fun acc -> acc.Add) accum.Genres
-      Artists = r.Artists |> List.fold (fun acc -> acc.Add) accum.Artists
+      Images = r.Images |> List.fold (_.Add) accum.Images
+      Genres = r.Genres |> List.fold (_.Add) accum.Genres
+      Artists = r.Artists |> List.fold (_.Add) accum.Artists
       Items = r.Item :: accum.Items
       ItemsAlbums = accum.ItemsAlbums.Add r.ItemAlbum
-      AlbumsArtists = r.AlbumArtists |> List.fold (fun acc -> acc.Add) accum.AlbumsArtists
-      ItemsArtists = r.ItemArtists |> List.fold (fun acc -> acc.Add) accum.ItemsArtists
-      AlbumsCoverArt = r.AlbumCoverArt |> List.fold (fun acc -> acc.Add) accum.AlbumsCoverArt
-      AlbumsGenres = r.AlbumGenres |> List.fold (fun acc -> acc.Add) accum.AlbumsGenres }
+      AlbumsArtists = r.AlbumArtists |> List.fold (_.Add) accum.AlbumsArtists
+      ItemsArtists = r.ItemArtists |> List.fold (_.Add) accum.ItemsArtists
+      AlbumsCoverArt = r.AlbumCoverArt |> List.fold (_.Add) accum.AlbumsCoverArt
+      AlbumsGenres = r.AlbumGenres |> List.fold (_.Add) accum.AlbumsGenres }
 
 // Recursive traverse directories
 // Pop current directory from list,
@@ -329,7 +329,7 @@ let rec traverseDirectories
                         currentDir.EnumerateFiles()
                         |> Seq.filter (fun file -> file.CreationTimeUtc > time || file.LastWriteTimeUtc > time)
                         |> Array.ofSeq
-                    |> Array.sortBy (fun d -> d.Name)
+                    |> Array.sortBy (_.Name)
 
                 match currentFiles with
                 | [||] -> ()
@@ -364,14 +364,14 @@ let rec traverseDirectories
                     // Create an accumulator with everything empty, but add in the imageInfos we got from image files
                     let accumulator =
                         { ReducedResult.Default with
-                            Images = imageInfos |> Set.fold (fun acc -> acc.Add) Set.empty }
+                            Images = imageInfos |> Set.fold (_.Add) Set.empty }
                     // Merge them into sets, so we don't insert duplicates
                     let reduced = fileResults |> List.fold scanResultAccumulator accumulator
 
                     logger.debug (Log.setMessage $"Items: {reduced.Items.Length}")
 
                     logger.debug (
-                        Log.setMessage $"""Items: {reduced.Items |> List.map (fun i -> i.path) |> String.concat ", "}"""
+                        Log.setMessage $"""Items: {reduced.Items |> List.map (_.path) |> String.concat ", "}"""
                     )
 
                     // First insert albums (which will check existing)
@@ -391,11 +391,11 @@ let rec traverseDirectories
                     let items = insertItemsTask.Result
                     let genres = insertGenresTask.Result
 
-                    logger.debug (Log.setMessage $"albums: %A{albums |> Seq.map (fun a -> a.name)}")
-                    logger.debug (Log.setMessage $"images: %A{images |> Seq.map (fun i -> i.path)}")
-                    logger.debug (Log.setMessage $"artists: %A{artists |> Seq.map (fun a -> a.name)}")
-                    logger.debug (Log.setMessage $"items: %A{items |> Seq.map (fun a -> a.path)}")
-                    logger.debug (Log.setMessage $"genres: %A{genres |> Seq.map (fun a -> a.name)}")
+                    logger.debug (Log.setMessage $"albums: %A{albums |> Seq.map (_.name)}")
+                    logger.debug (Log.setMessage $"images: %A{images |> Seq.map (_.path)}")
+                    logger.debug (Log.setMessage $"artists: %A{artists |> Seq.map (_.name)}")
+                    logger.debug (Log.setMessage $"items: %A{items |> Seq.map (_.path)}")
+                    logger.debug (Log.setMessage $"genres: %A{genres |> Seq.map (_.name)}")
                     logger.debug (Log.setMessage $"albumsArtists: %A{reduced.AlbumsArtists}")
 
                     // Time for relations
@@ -533,7 +533,7 @@ let scanMusicLibrary () =
 
                 let dirs: (DirectoryInfo * Guid option) list =
                     dirInfo.GetDirectories()
-                    |> Array.sortBy (fun di -> di.Name)
+                    |> Array.sortBy (_.Name)
                     |> List.ofArray
                     |> List.map (fun d -> (d, None))
 
@@ -598,7 +598,7 @@ let scanForUpdates () =
                     }
                     |> conn.SelectAsync<directory_items>
                 // Make set of current dirs in db
-                let directoryPathSet = directories |> Seq.map (fun d -> d.path) |> Set.ofSeq
+                let directoryPathSet = directories |> Seq.map (_.path) |> Set.ofSeq
 
                 // Get all dirs in library_root, then subtract it from current dirs
                 let dirsToDelete =
@@ -635,7 +635,7 @@ let scanForUpdates () =
                     |> conn.SelectAsync<directory_items>
 
                 // Map to path
-                let filesPathSet = files |> Seq.map (fun d -> d.path) |> Set.ofSeq
+                let filesPathSet = files |> Seq.map (_.path) |> Set.ofSeq
 
                 // Remove files on disk from db result
                 let filesToDelete =
@@ -667,7 +667,7 @@ let scanForUpdates () =
                     }
                     |> conn.SelectAsync<cover_art>
 
-                let imagePaths = images |> Seq.choose (fun i -> i.path) |> Set.ofSeq
+                let imagePaths = images |> Seq.choose (_.path) |> Set.ofSeq
 
                 // Now find images that don't exist
                 let imagesToDelete =
@@ -702,7 +702,7 @@ let scanForUpdates () =
                 // Now rescan for files that have changed
                 let dirs: (DirectoryInfo * Guid option) list =
                     dirInfo.GetDirectories()
-                    |> Array.sortBy (fun di -> di.Name)
+                    |> Array.sortBy (_.Name)
                     |> List.ofArray
                     |> List.map (fun d -> (d, None))
 

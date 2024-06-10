@@ -387,6 +387,20 @@ CREATE UNIQUE INDEX artists_name ON public.artists USING btree (name);
 
 
 --
+-- Name: artists_users_artist; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX artists_users_artist ON public.artists_users USING btree (artist_id);
+
+
+--
+-- Name: artists_users_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX artists_users_user ON public.artists_users USING btree (user_id);
+
+
+--
 -- Name: directory_items_parent; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -592,4 +606,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20230524062112'),
     ('20230525201324'),
     ('20230611034124'),
-    ('20230611180627');
+    ('20230611180627'),
+    ('20240610040456');

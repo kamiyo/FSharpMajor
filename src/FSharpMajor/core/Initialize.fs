@@ -81,7 +81,7 @@ let makeLibraryRoots () =
                 failwithf $"Environment variable %s{envVarName} has invalid value %s{value}"
             | NotSupported msg -> failwith msg
 
-    let roots = config.LibraryRoots.Split ',' |> Array.map (fun s -> s.Trim())
+    let roots = config.LibraryRoots.Split ',' |> Array.map (_.Trim())
 
     use conn = npgsqlSource.OpenConnection()
     // For now, just insert the library roots without updating if changed or deleted
@@ -92,7 +92,7 @@ let makeLibraryRoots () =
         }
         |> conn.SelectAsync<library_roots>
 
-    let exists = existsTask.Result |> Seq.map (fun r -> r.path) |> Set.ofSeq
+    let exists = existsTask.Result |> Seq.map (_.path) |> Set.ofSeq
 
     let needed =
         roots

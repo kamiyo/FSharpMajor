@@ -118,7 +118,7 @@ let private insertManyJoins<'T when 'T :> IJoinTable and 'T: comparison> (conn: 
                     AND t.{field2} = params.b"
 
         let a, b =
-            entities |> List.map (fun e -> e.QueryIdValues) |> Array.ofList |> Array.unzip
+            entities |> List.map (_.QueryIdValues) |> Array.ofList |> Array.unzip
 
         let existingResult = conn.Query<'T>(query, struct {| A = a; B = b |})
 
@@ -212,7 +212,7 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
                     |> conn.InsertOutputAsync<directory_items, directory_items>
 
         | _ ->
-            let paths = directoryItems |> List.map (fun di -> di.path)
+            let paths = directoryItems |> List.map (_.path)
 
             let! exists =
                 select {
@@ -221,7 +221,7 @@ let insertOrUpdateDirectoryItem (directoryItems: directory_items list) =
                 }
                 |> conn.SelectAsync<directory_items>
 
-            let existingPaths = exists |> Seq.map (fun di -> di.path) |> List.ofSeq
+            let existingPaths = exists |> Seq.map (_.path) |> List.ofSeq
 
             let toInsert =
                 directoryItems

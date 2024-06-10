@@ -22,6 +22,7 @@ open Quartz
 
 open Dapper.FSharp
 
+open FSharpMajor.FsLibLog
 open Initialize
 open Router
 open Authorization
@@ -83,6 +84,14 @@ module Program =
 
         services.AddQuartzHostedService() |> ignore
 
+    // let mailbox =
+    //     MailboxProcessor.Start(fun inbox ->
+    //         let logger = LogProvider.getLoggerByFunc ()
+    //         let rec loop n =
+    //             async {
+    //                 do logger.info(Log.setMessage $"")
+    //             }
+    //         loop 0)
 
     [<EntryPoint>]
     let main _ =
