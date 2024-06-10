@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="SqlDialectMappings">
-    <file url="file://$PROJECT_DIR$/src/FSharpMajor/db/migrations/20230525201324_create_library_roots.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/src/FSharpMajor/DB/migrations/20230525201324_create_library_roots.sql" dialect="GenericSQL" />
     <file url="PROJECT" dialect="PostgreSQL" />
   </component>
 </project>
