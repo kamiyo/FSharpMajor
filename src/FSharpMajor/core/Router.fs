@@ -8,6 +8,7 @@ open FSharpMajor.API.System
 open FSharpMajor.API.User
 open FSharpMajor.API.Users
 open FSharpMajor.API.MusicFolders
+open FSharpMajor.API.Indexes
 
 let apiRouter: HttpHandler =
     choose
@@ -15,6 +16,7 @@ let apiRouter: HttpHandler =
           route "/getLicense.view" >=> licenseHandler
           route "/getUser.view" >=> userHandler
           route "/getMusicFolders.view" >=> musicFoldersHandler
+          route "/getIndexes.view" >=> indexesHandler
           route "/getUsers.view"
           >=> requiresRole "Admin" (setSubsonicCode ErrorEnum.Unauthorized >=> subsonicError)
           >=> usersHandler ]

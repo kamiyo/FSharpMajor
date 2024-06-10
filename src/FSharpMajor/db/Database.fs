@@ -4,9 +4,7 @@ open dotenv.net
 open FsConfig
 open Npgsql
 
-
-
-DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
+DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true, probeLevelsToSearch = 8))
 
 [<Convention("POSTGRES")>]
 type Config =

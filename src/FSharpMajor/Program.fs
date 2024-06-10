@@ -8,7 +8,6 @@ open Serilog
 
 open FSharpMajor.Utils.Logging
 open FSharpMajor.XmlSerializer
-open FSharpMajor.FsLibLog
 
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
@@ -33,7 +32,7 @@ module Program =
 
     type TimerConfig = { ScanTime: string }
 
-    DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true))
+    DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true, probeLevelsToSearch = 8))
 
     let scanTime =
         match EnvConfig.Get<TimerConfig>() with

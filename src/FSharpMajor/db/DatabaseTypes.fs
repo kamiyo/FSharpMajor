@@ -15,7 +15,7 @@ type IJoinTable =
 
 [<CLIMutable; CustomEquality; CustomComparison>]
 type albums =
-    { id: System.Guid
+    { id: Guid
       name: string
       year: Option<int>
       from_path: bool }
@@ -48,8 +48,8 @@ type albums_cover_art =
 
 [<CLIMutable>]
 type albums_genres =
-    { genre_id: System.Guid
-      album_id: System.Guid }
+    { genre_id: Guid
+      album_id: Guid }
 
     interface IJoinTable with
         member __.QueryIdNames = nameof __.genre_id, nameof __.album_id
@@ -57,16 +57,16 @@ type albums_genres =
 
 [<CLIMutable>]
 type albums_users =
-    { album_id: System.Guid
-      user_id: System.Guid
-      starred: Option<System.DateTime>
-      last_played: Option<System.DateTime>
+    { album_id: Guid
+      user_id: Guid
+      starred: Option<DateTime>
+      last_played: Option<DateTime>
       play_count: Option<int64>
       rating: Option<int> }
 
 [<CLIMutable; CustomComparison; CustomEquality>]
 type artists =
-    { id: System.Guid
+    { id: Guid
       name: string
       image_url: Option<string>
       from_path: bool }
@@ -97,7 +97,8 @@ type artist_with_extensions =
       starred: DateTime option
       user_rating: int option
       last_played: DateTime option
-      average_rating: float option
+      average_rating: Decimal option
+      album_count: int64 option
       last_modified_time: DateTime }
 
 [<CLIMutable>]
@@ -105,8 +106,8 @@ type avg_rating = { average_rating: float option }
 
 [<CLIMutable>]
 type artists_albums =
-    { artist_id: System.Guid
-      album_id: System.Guid }
+    { artist_id: Guid
+      album_id: Guid }
 
     interface IJoinTable with
         member __.QueryIdNames = nameof __.artist_id, nameof __.album_id
@@ -114,20 +115,20 @@ type artists_albums =
 
 [<CLIMutable>]
 type artists_users =
-    { artist_id: System.Guid
-      user_id: System.Guid
-      starred: Option<System.DateTime>
-      last_played: Option<System.DateTime>
+    { artist_id: Guid
+      user_id: Guid
+      starred: Option<DateTime>
+      last_played: Option<DateTime>
       rating: Option<int> }
 
 [<CLIMutable; CustomComparison; CustomEquality>]
 type cover_art =
-    { id: System.Guid
+    { id: Guid
       mime: string
       image: Option<byte[]>
       path: Option<string>
       hash: string
-      created: System.DateTime }
+      created: DateTime }
 
     override __.Equals(obj: obj) =
         match obj with
@@ -149,9 +150,9 @@ type cover_art =
 
 [<CLIMutable; CustomEquality; NoComparison>]
 type directory_items =
-    { id: System.Guid
-      parent_id: Option<System.Guid>
-      music_folder_id: System.Guid
+    { id: Guid
+      parent_id: Option<Guid>
+      music_folder_id: Guid
       name: Option<string>
       is_dir: bool
       track: Option<int>
@@ -164,7 +165,7 @@ type directory_items =
       path: string
       is_video: Option<bool>
       disc_number: Option<int>
-      created: System.DateTime
+      created: DateTime
       ``type``: Option<string> }
 
     override __.Equals(obj: obj) =
@@ -185,7 +186,7 @@ type directory_items =
 
 [<CLIMutable; CustomEquality; CustomComparison>]
 type genres =
-    { id: System.Guid
+    { id: Guid
       name: string }
 
     override __.Equals(obj: obj) =
@@ -207,8 +208,8 @@ type genres =
 
 [<CLIMutable>]
 type items_albums =
-    { item_id: System.Guid
-      album_id: System.Guid }
+    { item_id: Guid
+      album_id: Guid }
 
     interface IJoinTable with
         member __.QueryIdNames = nameof __.item_id, nameof __.album_id
@@ -216,8 +217,8 @@ type items_albums =
 
 [<CLIMutable>]
 type items_artists =
-    { item_id: System.Guid
-      artist_id: System.Guid }
+    { item_id: Guid
+      artist_id: Guid }
 
     interface IJoinTable with
         member __.QueryIdNames = nameof __.item_id, nameof __.artist_id
@@ -225,17 +226,17 @@ type items_artists =
 
 [<CLIMutable>]
 type items_users =
-    { item_id: System.Guid
-      user_id: System.Guid
-      starred: Option<System.DateTime>
-      last_played: Option<System.DateTime>
+    { item_id: Guid
+      user_id: Guid
+      starred: Option<DateTime>
+      last_played: Option<DateTime>
       bookmark_pos: Option<int64>
       play_count: Option<int64>
       rating: Option<int> }
 
 [<CLIMutable>]
 type library_roots =
-    { id: System.Guid
+    { id: Guid
       name: string
       path: string
       initial_scan: Option<DateTime>
@@ -246,7 +247,7 @@ type schema_migrations = { version: string }
 
 [<CLIMutable>]
 type users =
-    { id: System.Guid
+    { id: Guid
       username: string
       password: string
       scrobbling: bool
@@ -263,7 +264,7 @@ type users =
       share_role: bool
       video_conversion_role: bool
       max_bit_rate: Option<int>
-      avatar_last_changed: Option<System.DateTime> }
+      avatar_last_changed: Option<DateTime> }
 
 
 let coverArtTable = table<cover_art>

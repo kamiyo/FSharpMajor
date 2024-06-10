@@ -33,7 +33,7 @@ module Types =
             Message: MessageThunk
             Exception: exn option
             Parameters: obj list
-            AdditionalNamedParameters: ((string * obj * bool) list)
+            AdditionalNamedParameters: (string * obj * bool) list
         }
 
         static member StartLogLevel(logLevel: LogLevel) = {
@@ -98,13 +98,13 @@ module Types =
             let stack = Stack<IDisposable>()
 
             interface IDisposable with
-                member __.Dispose() =
+                member _.Dispose() =
                     while stack.Count > 0 do
                         stack.Pop().Dispose()
 
-            member __.Push(item: IDisposable) = stack.Push item
+            member _.Push(item: IDisposable) = stack.Push item
 
-            member __.Push(items: IDisposable list) =
+            member _.Push(items: IDisposable list) =
                 items
                 |> List.iter stack.Push
 
@@ -379,14 +379,14 @@ module Types =
                 formatterRegex.Matches(messageFormat)
                 |> Seq.cast<Match>
                 |> Seq.map (fun m ->
-                    let number = Int32.Parse(m.Groups.["number"].Value)
-                    let formatGroup = m.Groups.["format"]
+                    let number = Int32.Parse(m.Groups["number"].Value)
+                    let formatGroup = m.Groups["format"]
                     let propertyValue = message.GetArgument(number)
                     let propertyName = formatGroup.Value
-                    let columnFormatGroup = m.Groups.["columnFormat"]
+                    let columnFormatGroup = m.Groups["columnFormat"]
                     propertyName, propertyValue, columnFormatGroup.Index, columnFormatGroup.Length
                 )
-            // Reverse the args so we won't change the indexes earlier in the string
+            // Reverse the args, so we won't change the indexes earlier in the string
             args
             |> Seq.rev
             |> Seq.iter (fun (_, _, removeStart, removeLength) ->
@@ -606,7 +606,7 @@ module Providers =
                     (logEventLevelType
                      |> isNull)
                 then
-                    failwith ("Type Serilog.Events.LogEventLevel was not found.")
+                    failwith "Type Serilog.Events.LogEventLevel was not found."
 
                 let debugLevel = Enum.Parse(logEventLevelType, "Debug", false)
 
@@ -633,7 +633,7 @@ module Providers =
                 let loggerType = Type.GetType("Serilog.ILogger, Serilog")
 
                 if (loggerType |> isNull) then
-                    failwith ("Type Serilog.ILogger was not found.")
+                    failwith "Type Serilog.ILogger was not found."
 
                 let isEnabledMethodInfo = loggerType.GetMethod("IsEnabled", [| logEventLevelType |])
 
@@ -730,7 +730,7 @@ module Providers =
         type private SeriLogProvider() =
             let getLoggerByName = getForContextMethodCall ()
             let pushProperty = getPushProperty ()
-            let serilogGatewayInit = lazy (SerilogGateway.Create())
+            let serilogGatewayInit = lazy SerilogGateway.Create()
 
             let writeMessage logger logLevel (messageFunc: MessageThunk) ``exception`` formatParams =
                 let serilogGateway = serilogGatewayInit.Value
@@ -778,7 +778,7 @@ module Providers =
 
         let getLogFactoryType =
             lazy
-                (Type.GetType("Microsoft.Extensions.Logging.ILoggerFactory, Microsoft.Extensions.Logging.Abstractions"))
+                Type.GetType("Microsoft.Extensions.Logging.ILoggerFactory, Microsoft.Extensions.Logging.Abstractions")
 
         let isAvailable () =
             getLogFactoryType.Value
@@ -1005,8 +1005,8 @@ module Providers =
 
 
         type private MicrosoftProvider() =
-            let factoryGateway = lazy (LoggerFactoryGateway.Create())
-            let loggerGateway = lazy (LoggerGateway.Create())
+            let factoryGateway = lazy LoggerFactoryGateway.Create()
+            let loggerGateway = lazy LoggerGateway.Create()
 
             interface ILogProvider with
                 member this.GetLogger(name: string) : Logger =
@@ -1029,7 +1029,7 @@ module Providers =
                                 true
                             | None -> loggerGateway.Value.IsEnabled logger microsoftLevel
 
-                member this.OpenMappedContext (key: string) (value: obj) (destructure: bool) : IDisposable =
+                member this.OpenMappedContext (key: string) (value: obj) (_destructure: bool) : IDisposable =
                     match microsoftLoggerFactory with
                     | None ->
                         { new IDisposable with
@@ -1068,7 +1068,6 @@ module LogProvider =
 #if !FABLE_COMPILER
     open Providers
 #endif
-    open System.Diagnostics
     open Microsoft.FSharp.Quotations.Patterns
 
     let mutable private currentLogProvider = None
@@ -1091,7 +1090,7 @@ module LogProvider =
 
     let private noopDisposable =
         { new IDisposable with
-            member __.Dispose() = ()
+            member _.Dispose() = ()
         }
 
     /// <summary>
@@ -1181,7 +1180,7 @@ module LogProvider =
     /// </summary>
     /// <typeparam name="'a">The type to generate a name from.</typeparam>
     /// <returns></returns>
-    let inline getLoggerFor<'a> () = getLoggerByType (typeof<'a>)
+    let inline getLoggerFor<'a> () = getLoggerByType typeof<'a>
 
 #if !FABLE_COMPILER
     let rec private getModuleType =
@@ -1190,7 +1189,7 @@ module LogProvider =
         // | Call (_, methInfo, _) -> sprintf "%s.%s" methInfo.DeclaringType.FullName methInfo.Name
         // | Lambda(_, expr) -> getModuleType expr
         // | ValueWithName(_,_,instance) -> instance
-        | x -> failwithf "Expression is not a property. %A" x
+        | x -> failwithf $"Expression is not a property. %A{x}"
 
 
     /// <summary>
@@ -1227,7 +1226,7 @@ type LogProvider =
             |> Seq.tryHead
             |> Option.defaultValue ""
 
-        sprintf "%s.%s" location memberName.Value
+        $"%s{location}.%s{memberName.Value}"
         |> LogProvider.getLoggerByName
 
 #endif

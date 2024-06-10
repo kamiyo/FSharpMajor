@@ -6,6 +6,6 @@ open Microsoft.AspNetCore.Http
 open FSharpMajor.Scanner
 
 let updateScanHandler: HttpHandler =
-    fun (next: HttpFunc) (ctx: HttpContext) ->
-        let scanTask = scanForUpdates ()
+    fun (_next: HttpFunc) (ctx: HttpContext) ->
+        let _scanTask = scanForUpdates ()
         text "Update scan started" earlyReturn ctx

@@ -81,9 +81,11 @@ type UserAttributes
     member _.JukeboxRole: bool = defaultArg jukeboxRole false
     member _.ShareRole: bool = defaultArg shareRole false
     member _.VideoConversionRole: bool = defaultArg videoConversionRole false
-    member _.AvatarLastChanged: DateTime option = avatarLastChanged
 
-type ArtistAttributes(id, name, ?artistImageUrl, ?starred, ?userRating, ?averageRating) =
+    member _.AvatarLastChanged: DateTime option =
+        defaultArg avatarLastChanged (Some DateTime.Now)
+
+type ArtistAttributes(id, name, ?artistImageUrl, ?starred, ?userRating, ?averageRating, ?albumCount) =
     inherit BaseAttributes()
     member _.Id: string = id
     member _.Name: string = name
@@ -91,6 +93,7 @@ type ArtistAttributes(id, name, ?artistImageUrl, ?starred, ?userRating, ?average
     member _.Starred: string option = defaultArg starred None
     member _.UserRating: int option = defaultArg userRating None
     member _.AverageRating: float option = defaultArg averageRating None
+    member _.AlbumCount: int option = defaultArg albumCount None
 
 
 type MusicFolderAttributes(id, ?name) =
@@ -113,6 +116,7 @@ type SubsonicResponseAttributes(?xmlns, ?status, ?version, ?_attrType, ?serverVe
     member _.Status: string = defaultArg status "ok"
     member _.Version: string = defaultArg version "1.16.1"
     member _.Type: string option = (Some "fsharpmajor")
+    member _.OpenSubsonic: string = "true"
 
     member _.ServerVersion: string option =
         Option.orElse (Some currentVersion) serverVersion

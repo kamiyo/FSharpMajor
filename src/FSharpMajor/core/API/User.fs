@@ -29,7 +29,7 @@ let userHandler: HttpHandler =
                 let serializer = ctx.GetXmlSerializer()
 
                 let body =
-                    SubsonicResponse(children = XmlElements [| User(mapUserToAttributes (user)) |])
+                    SubsonicResponse(children = XmlElements [| User(mapUserToAttributes user) |])
                     |> serializer.Serialize
 
                 setBody body next ctx

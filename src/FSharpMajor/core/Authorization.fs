@@ -82,9 +82,8 @@ type BasicAuthenticationOptions() =
         inherit AuthenticationSchemeOptions()
     end
 
-type BasicAuthHandler(options, logger, encoder, clock, authManager: IAuthenticationManager, dbContext: IDatabaseService)
-    =
-    inherit AuthenticationHandler<BasicAuthenticationOptions>(options, logger, encoder, clock)
+type BasicAuthHandler(options, logger, encoder, authManager: IAuthenticationManager, _dbContext: IDatabaseService) =
+    inherit AuthenticationHandler<BasicAuthenticationOptions>(options, logger, encoder)
     member _.authManager = authManager
 
     override __.HandleAuthenticateAsync() =
