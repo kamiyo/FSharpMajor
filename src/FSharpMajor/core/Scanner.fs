@@ -12,6 +12,7 @@ open Microsoft.AspNetCore.StaticFiles
 
 open Dapper.FSharp.PostgreSQL
 
+open FSharpMajor.Utils.Counter
 open FSharpMajor.FsLibLog
 open FSharpMajor.Database
 open FSharpMajor.InsertTasks
@@ -169,12 +170,16 @@ let scanImage (file: FileInfo) (mimeType: string) =
 let imageMimeTypes = [ "jpeg"; "jpg"; "png" ]
 
 let isImage (mimeType: string) =
-    imageMimeTypes
-    |> List.exists (fun t -> mimeType.Contains(t, StringComparison.InvariantCultureIgnoreCase))
+    let exists =
+        imageMimeTypes
+        |> List.exists (fun t -> mimeType.Contains(t, StringComparison.InvariantCultureIgnoreCase))
+    match exists with
+    | true -> true, mimeType.Replace("taglib", "image")
+    | false -> false, mimeType
 
 let rec findFirstLevelDir (rootDirInfo: DirectoryInfo) (currentDir: DirectoryInfo) =
     match currentDir.Parent with
-    | d when d = rootDirInfo -> currentDir
+    | d when d.FullName = rootDirInfo.FullName -> currentDir
     | d -> findFirstLevelDir rootDirInfo d
 
 let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileInfo) (parentId: Guid option) =
@@ -189,8 +194,8 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
 
                 let tags = TagLib.File.Create fileInfo.FullName
 
-                match tags.MimeType with
-                | mime when isImage mime ->
+                match isImage tags.MimeType with
+                | true, mime ->
                     // Image, return it as album art
                     return scanImage fileInfo mime
                 | _ ->
@@ -280,6 +285,13 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
                 return NoResult
             | error ->
                 logger.error (Log.setMessage $"{error.Message}")
+                let st = StackTrace(error, true)
+                let mutable stackIndent = ""
+                for frame in st.GetFrames() do
+                    logger.error (Log.setMessage $"{stackIndent}{frame.GetFileName()}")
+                    logger.error (Log.setMessage $"{stackIndent}{frame.GetMethod()}")
+                    logger.error (Log.setMessage $"{stackIndent}{frame.GetFileLineNumber()}:{frame.GetFileColumnNumber()}")
+                    stackIndent <- "  "
                 return NoResult
         }
 
@@ -353,13 +365,16 @@ let rec traverseDirectories
 
                     let scanResult = scanTask.Result |> List.ofArray
 
-                    logger.info (Log.setMessage $"{scanResult.Length} media files scanned in {currentDir.FullName}")
+                    logger.debug (Log.setMessage $"{scanResult.Length} media files scanned in {currentDir.FullName}")
 
                     // Separate results into their types by folding
                     let imageInfos, fileResults =
                         scanResult |> List.fold resultsSeparator (Set.empty, List<FileResult>.Empty)
 
                     logger.debug (Log.setMessage $"Images: {imageInfos |> Set.count}, Files: {fileResults.Length}")
+                    
+                    // Send message to counter
+                    counter.Post(IncrementFileCount (fileResults |> List.length))
 
                     // Create an accumulator with everything empty, but add in the imageInfos we got from image files
                     let accumulator =
@@ -477,10 +492,20 @@ let rec traverseDirectories
                     logger.debug (Log.setMessage $"itemsAlbums: %A{itemsAlbums}")
                     logger.debug (Log.setMessage $"albumsCoverArt: %A{albumsCoverArt}")
                     logger.debug (Log.setMessage $"albumsGenres: %A{albumsGenres}")
+                    
+                    counter.Post(IncrementDirectoryCount 1)
+                    
                     ()
-            // Should notify eventual mailboxprocessor of Seq.length items
             with exn ->
                 logger.error (Log.setMessage $"%A{exn}")
+                let st = StackTrace(exn, true)
+                let mutable stackIndent = ""
+                for frame in st.GetFrames() do
+                    logger.error (Log.setMessage $"{stackIndent}{frame.GetFileName()}")
+                    logger.error (Log.setMessage $"{stackIndent}{frame.GetMethod()}")
+                    logger.error (Log.setMessage $"{stackIndent}{frame.GetFileLineNumber()}:{frame.GetFileColumnNumber()}")
+                    logger.error (Log.setMessage $"{stackIndent}{frame.GetFileLineNumber()}:{frame.GetFileColumnNumber()}")
+                    stackIndent <- "  "
         finally
             let newRest =
                 try
@@ -508,6 +533,7 @@ let scanMusicLibrary () =
             }
             |> conn.SelectAsync<library_roots>
 
+        startScanLogger()
 
         for root in roots do
             match root.initial_scan, root.is_scanning, DirectoryInfo(root.path) with
@@ -557,6 +583,8 @@ let scanMusicLibrary () =
                 stopWatch.Stop()
                 logger.info (Log.setMessage $"Traversed {dirInfo.FullName} in {stopWatch.ElapsedMilliseconds}ms")
                 ()
+                
+        stopScanLogger()
     }
 
 let scanForUpdates () =
@@ -590,141 +618,156 @@ let scanForUpdates () =
                     }
                     |> conn.UpdateAsync<library_roots>
 
-                // Get directories
-                let! directories =
-                    select {
-                        for items in directoryItemsTable do
-                            where (items.is_dir = true)
-                    }
-                    |> conn.SelectAsync<directory_items>
-                // Make set of current dirs in db
-                let directoryPathSet = directories |> Seq.map (_.path) |> Set.ofSeq
-
-                // Get all dirs in library_root, then subtract it from current dirs
-                let dirsToDelete =
-                    Directory.EnumerateDirectories(root.path, "*", EnumerationOptions(RecurseSubdirectories = true))
-                    |> Seq.map Path.GetFullPath
-                    |> Set.ofSeq
-                    |> Set.difference directoryPathSet
-                    |> Set.toList
-
-                logger.info (Log.setMessage $"To delete: %A{dirsToDelete}")
-
-                // This will also cascade and delete any directory_items that are orphaned
-                // As well as any relations.
-                let! deletedDirs =
-                    match dirsToDelete with
-                    | [] -> Task.FromResult Seq.empty
-                    | _ ->
-                        delete {
-                            for di in directoryItemsTable do
-                                where (isIn di.path dirsToDelete)
+                try
+                    // Get directories
+                    let! directories =
+                        select {
+                            for items in directoryItemsTable do
+                                where (items.is_dir = true)
                         }
-                        |> conn.DeleteOutputAsync<directory_items>
+                        |> conn.SelectAsync<directory_items>
+                    // Make set of current dirs in db
+                    let directoryPathSet = directories |> Seq.map (_.path) |> Set.ofSeq
 
-                for d in deletedDirs do
-                    logger.info (Log.setMessage $"Deleted folder and children: {d.path}")
+                    // Get all dirs in library_root, then subtract it from current dirs
+                    let dirsToDelete =
+                        Directory.EnumerateDirectories(root.path, "*", EnumerationOptions(RecurseSubdirectories = true))
+                        |> Seq.map Path.GetFullPath
+                        |> Set.ofSeq
+                        |> Set.difference directoryPathSet
+                        |> Set.toList
 
-                // Now find items that have been deleted
-                // First get all items
-                let! files =
-                    select {
-                        for items in directoryItemsTable do
-                            where (items.is_dir = false)
-                    }
-                    |> conn.SelectAsync<directory_items>
+                    logger.info (Log.setMessage $"To delete: %A{dirsToDelete}")
 
-                // Map to path
-                let filesPathSet = files |> Seq.map (_.path) |> Set.ofSeq
+                    // This will also cascade and delete any directory_items that are orphaned
+                    // As well as any relations.
+                    let! deletedDirs =
+                        match dirsToDelete with
+                        | [] -> Task.FromResult Seq.empty
+                        | _ ->
+                            delete {
+                                for di in directoryItemsTable do
+                                    where (isIn di.path dirsToDelete)
+                            }
+                            |> conn.DeleteOutputAsync<directory_items>
 
-                // Remove files on disk from db result
-                let filesToDelete =
-                    Directory.EnumerateFiles(root.path, "*", EnumerationOptions(RecurseSubdirectories = true))
-                    |> Seq.map Path.GetFullPath
-                    |> Set.ofSeq
-                    |> Set.difference filesPathSet
-                    |> Set.toList
+                    for d in deletedDirs do
+                        logger.info (Log.setMessage $"Deleted folder and children: {d.path}")
 
-                logger.info (Log.setMessage $"Files to delete: %A{filesToDelete}")
-
-                let! deletedFiles =
-                    match filesToDelete with
-                    | [] -> Task.FromResult Seq.empty
-                    | _ ->
-                        delete {
-                            for di in directoryItemsTable do
-                                where (isIn di.path filesToDelete)
+                    // Now find items that have been deleted
+                    // First get all items
+                    let! files =
+                        select {
+                            for items in directoryItemsTable do
+                                where (items.is_dir = false)
                         }
-                        |> conn.DeleteOutputAsync<directory_items>
+                        |> conn.SelectAsync<directory_items>
 
-                for d in deletedFiles do
-                    logger.info (Log.setMessage $"Deleted item: {d.path}")
+                    // Map to path
+                    let filesPathSet = files |> Seq.map (_.path) |> Set.ofSeq
 
-                let! images =
-                    select {
-                        for ca in coverArtTable do
-                            where (isNotNullValue ca.path)
-                    }
-                    |> conn.SelectAsync<cover_art>
+                    // Remove files on disk from db result
+                    let filesToDelete =
+                        Directory.EnumerateFiles(root.path, "*", EnumerationOptions(RecurseSubdirectories = true))
+                        |> Seq.map Path.GetFullPath
+                        |> Set.ofSeq
+                        |> Set.difference filesPathSet
+                        |> Set.toList
 
-                let imagePaths = images |> Seq.choose (_.path) |> Set.ofSeq
+                    logger.info (Log.setMessage $"Files to delete: %A{filesToDelete}")
 
-                // Now find images that don't exist
-                let imagesToDelete =
-                    seq {
-                        Directory.EnumerateFiles(root.path, "*.jpeg", EnumerationOptions(RecurseSubdirectories = true))
-                        Directory.EnumerateFiles(root.path, "*.jpg", EnumerationOptions(RecurseSubdirectories = true))
-                        Directory.EnumerateFiles(root.path, "*.png", EnumerationOptions(RecurseSubdirectories = true))
-                    }
-                    |> Seq.concat
-                    |> Seq.map Path.GetFullPath
-                    |> Set.ofSeq
-                    |> Set.difference imagePaths
-                    |> Set.toList
-                    |> List.map Some
+                    let! deletedFiles =
+                        match filesToDelete with
+                        | [] -> Task.FromResult Seq.empty
+                        | _ ->
+                            delete {
+                                for di in directoryItemsTable do
+                                    where (isIn di.path filesToDelete)
+                            }
+                            |> conn.DeleteOutputAsync<directory_items>
 
-                logger.info (Log.setMessage $"Images to delete: %A{imagesToDelete}")
+                    for d in deletedFiles do
+                        logger.info (Log.setMessage $"Deleted item: {d.path}")
 
-                let! deletedImages =
-                    match imagesToDelete with
-                    | [] -> Task.FromResult Seq.empty
-                    | _ ->
-                        delete {
+                    let! images =
+                        select {
                             for ca in coverArtTable do
-                                where (isIn ca.path imagesToDelete)
+                                where (isNotNullValue ca.path)
                         }
-                        |> conn.DeleteOutputAsync<cover_art>
+                        |> conn.SelectAsync<cover_art>
 
-                for i in deletedImages do
-                    logger.info (Log.setMessage $"Deleted cover art: {i.path}")
+                    let imagePaths = images |> Seq.choose (_.path) |> Set.ofSeq
+                    
+                    logger.info (Log.setMessage $"Database images with path: %A{imagePaths}")
+                    
+                    // TODO: this doesn't work because we're not storing the tag images as files, but rather in database
+                    // Now find images that don't exist
+                    let imagesToDelete =
+                        seq {
+                            Directory.EnumerateFiles(root.path, "*.jpeg", EnumerationOptions(RecurseSubdirectories = true, AttributesToSkip = FileAttributes.None))
+                            Directory.EnumerateFiles(root.path, "*.jpg", EnumerationOptions(RecurseSubdirectories = true, AttributesToSkip = FileAttributes.None))
+                            Directory.EnumerateFiles(root.path, "*.png", EnumerationOptions(RecurseSubdirectories = true, AttributesToSkip = FileAttributes.None))
+                        }
+                        |> Seq.concat
+                        |> Seq.map Path.GetFullPath
+                        |> Set.ofSeq
+                        |> Set.difference imagePaths
+                        |> Set.toList
+                        |> List.map Some
 
-                let dirInfo = DirectoryInfo(root.path)
-                // Now rescan for files that have changed
-                let dirs: (DirectoryInfo * Guid option) list =
-                    dirInfo.GetDirectories()
-                    |> Array.sortBy (_.Name)
-                    |> List.ofArray
-                    |> List.map (fun d -> (d, None))
+                    logger.info (Log.setMessage $"Images to delete: %A{imagesToDelete}")
 
-                traverseDirectories root.id dirInfo dirs None
+                    let! deletedImages =
+                        match imagesToDelete with
+                        | [] -> Task.FromResult Seq.empty
+                        | _ ->
+                            delete {
+                                for ca in coverArtTable do
+                                    where (isIn ca.path imagesToDelete)
+                            }
+                            |> conn.DeleteOutputAsync<cover_art>
 
-                let updatedRoot =
-                    { root with
-                        initial_scan = Some DateTime.UtcNow
-                        is_scanning = false }
+                    for i in deletedImages do
+                        logger.info (Log.setMessage $"Deleted cover art: {i.path}")
 
-                let! _ =
-                    update {
+                    let dirInfo = DirectoryInfo(root.path)
+                    // Now rescan for files that have changed
+                    let dirs: (DirectoryInfo * Guid option) list =
+                        dirInfo.GetDirectories()
+                        |> Array.sortBy (_.Name)
+                        |> List.ofArray
+                        |> List.map (fun d -> (d, None))
+
+                    traverseDirectories root.id dirInfo dirs None
+
+                    let updatedRoot =
+                        { root with
+                            initial_scan = Some DateTime.UtcNow
+                            is_scanning = false }
+
+                    let! _ =
+                        update {
+                            for r in libraryRootsTable do
+                                set updatedRoot
+                                includeColumn r.initial_scan
+                                includeColumn r.is_scanning
+                                where (r.id = root.id)
+                        }
+                        |> conn.UpdateAsync<library_roots>
+
+
+                    stopWatch.Stop()
+                    logger.info (Log.setMessage $"Updated {root.path} in {stopWatch.ElapsedMilliseconds}ms")
+                    ()
+                with
+                | _ ->
+                    let! _ =
+                        update {
                         for r in libraryRootsTable do
-                            set updatedRoot
-                            includeColumn r.initial_scan
+                            set { root with is_scanning = false }
                             includeColumn r.is_scanning
                             where (r.id = root.id)
-                    }
-                    |> conn.UpdateAsync<library_roots>
-
-
-                stopWatch.Stop()
-                logger.info (Log.setMessage $"Updated {root.path} in {stopWatch.ElapsedMilliseconds}ms")
-                ()
+                        }
+                        |> conn.UpdateAsync<library_roots>
+                    ()
     }

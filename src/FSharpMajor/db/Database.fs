@@ -1,8 +1,10 @@
 module FSharpMajor.Database
 
+open Microsoft.Extensions.Logging
 open dotenv.net
 open FsConfig
 open Npgsql
+open Serilog
 
 DotEnv.Load(DotEnvOptions(envFilePaths = [| ".env" |], probeForEnv = true, probeLevelsToSearch = 8))
 
@@ -35,10 +37,10 @@ let connString =
 
 let private dataSourceBuilder = NpgsqlDataSourceBuilder(connString)
 
-// let logger =
-//     LoggerFactory.Create(fun logging -> logging.AddSerilog(Log.Logger) |> ignore)
-//
-//
+let logger =
+    LoggerFactory.Create(fun logging -> logging.AddSerilog(Log.Logger) |> ignore)
+
+
 // match System.Environment.GetEnvironmentVariable "ASPNETCORE_ENVIRONMENT" with
 // | "Development" ->
 //     dataSourceBuilder.UseLoggerFactory logger |> ignore

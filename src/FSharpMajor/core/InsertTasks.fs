@@ -39,11 +39,14 @@ let private insertManyAndOrReturn<'T when 'T :> IQueryField and 'T: comparison>
     task {
         let h = List.head entities
         let fieldName = h.QueryField |> fst
-        let searchList = entities |> List.map (fun e -> e.QueryField |> snd) |> Array.ofList
-
+        let searchList =
+            entities
+            |> List.map (fun e -> e.QueryField |> snd)
+            |> Array.ofList
+      
         let sql =
             $"SELECT t.* FROM {typeof<'T>.Name} as t \
-                    WHERE t.{fieldName} = ANY @A"
+                    WHERE t.{fieldName} = ANY (@A)"
 
         let! existing = conn.QueryAsync<'T>(sql, struct {| A = searchList |})
 

@@ -12,20 +12,21 @@ open FSharpMajor.API.Indexes
 
 let apiRouter: HttpHandler =
     choose
-        [ route "/ping.view" >=> pingHandler
-          route "/getLicense.view" >=> licenseHandler
-          route "/getUser.view" >=> userHandler
-          route "/getMusicFolders.view" >=> musicFoldersHandler
-          route "/getIndexes.view" >=> indexesHandler
-          route "/getUsers.view"
+        [ route "ping.view" >=> pingHandler
+          route "getLicense.view" >=> licenseHandler
+          route "getUser.view" >=> userHandler
+          route "getMusicFolders.view" >=> musicFoldersHandler
+          route "getIndexes.view" >=> indexesHandler
+          route "getUsers.view"
           >=> requiresRole "Admin" (setSubsonicCode ErrorEnum.Unauthorized >=> subsonicError)
           >=> usersHandler ]
 
 let rootRouter: HttpHandler =
     choose
-        [ GET >=> route "/update" >=> updateScanHandler
-          GET
+        [ route "/favicon.ico" >=> setStatusCode 404
+          route "/update" >=> GET >=> updateScanHandler
+          route "/rest"
           >=> setXmlType
           >=> requiresAuthentication subsonicError
-          >=> choose [ subRoute "/rest" apiRouter ]
+          >=> choose [ subRoute "/rest/" apiRouter ]
           subsonicError ]

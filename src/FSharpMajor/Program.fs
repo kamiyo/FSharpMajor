@@ -47,7 +47,7 @@ module Program =
     let exitCode = 0
 
     let configureApp (app: IApplicationBuilder) =
-        app.UseAuthentication() |> ignore
+        // app.UseAuthentication() |> ignore
         app.UseGiraffe(SerilogAdapter.Enable rootRouter)
 
     let configureServices (services: IServiceCollection) =
@@ -98,8 +98,8 @@ module Program =
         PostgreSQL.OptionTypes.register ()
 
         initLogger ()
-        makeOrUpdateAdmin ()
-        makeLibraryRoots () |> ignore
+        makeOrUpdateAdmin () |> (_.Result)
+        makeLibraryRoots () |> (_.Result) |> ignore
         let scanTask = scanMusicLibrary ()
 
         Host
