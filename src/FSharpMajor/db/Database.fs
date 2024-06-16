@@ -40,7 +40,6 @@ let private dataSourceBuilder = NpgsqlDataSourceBuilder(connString)
 let logger =
     LoggerFactory.Create(fun logging -> logging.AddSerilog(Log.Logger) |> ignore)
 
-
 // match System.Environment.GetEnvironmentVariable "ASPNETCORE_ENVIRONMENT" with
 // | "Development" ->
 //     dataSourceBuilder.UseLoggerFactory logger |> ignore

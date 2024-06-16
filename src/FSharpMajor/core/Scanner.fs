@@ -8,25 +8,16 @@ open System.Diagnostics
 open System.Security.Cryptography
 open System.Threading.Tasks
 open FSharpMajor.DatabaseTypes
-open Microsoft.AspNetCore.StaticFiles
 
 open Dapper.FSharp.PostgreSQL
 
 open FSharpMajor.Utils.Counter
 open FSharpMajor.FsLibLog
+open FSharpMajor.Utils.Mime
 open FSharpMajor.Database
 open FSharpMajor.InsertTasks
 
-let MIMEProvider = FileExtensionContentTypeProvider()
-MIMEProvider.Mappings.Add(".flac", "audio/flac")
 let md5 = MD5.Create()
-
-let getMimeType (file: string) =
-    let mutable mimeType = ""
-
-    match MIMEProvider.TryGetContentType(file, &mimeType) with
-    | false -> "application/octet-stream"
-    | true -> mimeType
 
 let CaseInsensitiveEnumOption =
     EnumerationOptions(MatchCasing = MatchCasing.CaseInsensitive)
@@ -53,19 +44,6 @@ let getImagesFromTag (file: FileInfo) =
     match tags.Tag.Pictures with
     | [||] -> Set.empty
     | images -> createSetOfImages (images |> List.ofArray) Set.empty
-
-let getMediaType (tagFile: TagLib.File) =
-    let genres = tagFile.Tag.Genres
-
-    if Array.contains "audiobook" genres then
-        Some "audiobook"
-    else if Array.contains "podcast" genres then
-        Some "podcast"
-    else
-        match getMimeType tagFile.Name with
-        | mime when mime.Contains "video" -> Some "video"
-        | mime when mime.Contains "audio" -> Some "audio"
-        | _ -> None
 
 let createItem (fi: FileInfo) (tags: TagLib.File) (musicFolderId: Guid) (parentId: Guid option) =
     let name =
@@ -167,23 +145,12 @@ let scanImage (file: FileInfo) (mimeType: string) =
 
     ImageResult toInsert
 
-let imageMimeTypes = [ "jpeg"; "jpg"; "png" ]
-
-let isImage (mimeType: string) =
-    let exists =
-        imageMimeTypes
-        |> List.exists (fun t -> mimeType.Contains(t, StringComparison.InvariantCultureIgnoreCase))
-    match exists with
-    | true -> true, mimeType.Replace("taglib", "image")
-    | false -> false, mimeType
-
 let rec findFirstLevelDir (rootDirInfo: DirectoryInfo) (currentDir: DirectoryInfo) =
     match currentDir.Parent with
     | d when d.FullName = rootDirInfo.FullName -> currentDir
     | d -> findFirstLevelDir rootDirInfo d
 
 let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileInfo) (parentId: Guid option) =
-
     match fileInfo.Exists with
     | false -> Task.FromResult NoResult
     | true ->
@@ -191,7 +158,6 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
             let logger = LogProvider.getLoggerByFunc ()
 
             try
-
                 let tags = TagLib.File.Create fileInfo.FullName
 
                 match isImage tags.MimeType with
@@ -255,13 +221,11 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
                               name = a
                               image_url = None
                               from_path = artistsFromPath })
+                        
                     // Time for relations
                     let albumArtists = [ for artist in artists -> (album, artist) ]
-
                     let itemArtists = [ for artist in artists -> (diInstance.path, artist) ]
-
                     let albumGenres = [ for genre in genres -> (album, genre) ]
-
                     let albumCoverArt = [ for image in images -> (album, image) ]
 
                     return
@@ -288,9 +252,9 @@ let scanFile (rootDirInfo: DirectoryInfo) (musicFolderId: Guid) (fileInfo: FileI
                 let st = StackTrace(error, true)
                 let mutable stackIndent = ""
                 for frame in st.GetFrames() do
-                    logger.error (Log.setMessage $"{stackIndent}{frame.GetFileName()}")
-                    logger.error (Log.setMessage $"{stackIndent}{frame.GetMethod()}")
-                    logger.error (Log.setMessage $"{stackIndent}{frame.GetFileLineNumber()}:{frame.GetFileColumnNumber()}")
+                    logger.debug (Log.setMessage $"{stackIndent}{frame.GetFileName()}")
+                    logger.debug (Log.setMessage $"{stackIndent}{frame.GetMethod()}")
+                    logger.debug (Log.setMessage $"{stackIndent}{frame.GetFileLineNumber()}:{frame.GetFileColumnNumber()}")
                     stackIndent <- "  "
                 return NoResult
         }
@@ -501,10 +465,9 @@ let rec traverseDirectories
                 let st = StackTrace(exn, true)
                 let mutable stackIndent = ""
                 for frame in st.GetFrames() do
-                    logger.error (Log.setMessage $"{stackIndent}{frame.GetFileName()}")
-                    logger.error (Log.setMessage $"{stackIndent}{frame.GetMethod()}")
-                    logger.error (Log.setMessage $"{stackIndent}{frame.GetFileLineNumber()}:{frame.GetFileColumnNumber()}")
-                    logger.error (Log.setMessage $"{stackIndent}{frame.GetFileLineNumber()}:{frame.GetFileColumnNumber()}")
+                    logger.debug (Log.setMessage $"{stackIndent}{frame.GetFileName()}")
+                    logger.debug (Log.setMessage $"{stackIndent}{frame.GetMethod()}")
+                    logger.debug (Log.setMessage $"{stackIndent}{frame.GetFileLineNumber()}:{frame.GetFileColumnNumber()}")
                     stackIndent <- "  "
         finally
             let newRest =
