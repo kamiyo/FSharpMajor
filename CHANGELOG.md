@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="1.9.4"></a>
+## [1.9.4](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.9.4) (2024-6-15)
+
 <a name="1.9.3"></a>
 ## [1.9.3](https://www.github.com/kamiyo/FSharpMajor/releases/tag/v1.9.3) (2024-6-15)
 
